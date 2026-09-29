@@ -7,11 +7,13 @@ import Field from "../../components/ui/Field";
 import { money } from "../../lib/format";
 import { useData } from "../../context/DataContext";
 
+const emptyForm = { name: "", contact: "", phone: "", address: "", productId: "", qty: 1 };
+
 export default function Customers() {
-  const { customers, getCustomerStats, createCustomer, updateCustomer, deleteCustomer, loading } = useData();
+  const { customers, products, productById, getCustomerStats, createCustomer, updateCustomer, deleteCustomer, createSale, loading } = useData();
   const [modalOpen, setModalOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [form, setForm] = useState({ name: "", contact: "", phone: "", address: "" });
+  const [form, setForm] = useState(emptyForm);
   const [editForm, setEditForm] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -21,25 +23,39 @@ export default function Customers() {
     (c) => c.name.toLowerCase().includes(query.toLowerCase()) || c.contact.toLowerCase().includes(query.toLowerCase())
   );
 
+  const newProduct = productById(form.productId);
+  const newAvailable = newProduct ? newProduct.stockTotal - newProduct.stockTaken : 0;
+  const newTotal = newProduct ? newProduct.price * form.qty : 0;
+
+  const editProduct = editForm ? productById(editForm.productId) : null;
+  const editAvailable = editProduct ? editProduct.stockTotal - editProduct.stockTaken : 0;
+  const editTotal = editProduct ? editProduct.price * editForm.qty : 0;
+
   async function handleSave(e) {
     e.preventDefault();
     setSaving(true);
-    await createCustomer(form);
+    const newId = await createCustomer(form);
+    if (form.productId && Number(form.qty) > 0) {
+      await createSale({ customerId: newId, productId: form.productId, qty: form.qty, paymentStatus: "Pending" });
+    }
     setSaving(false);
-    setForm({ name: "", contact: "", phone: "", address: "" });
+    setForm(emptyForm);
     setModalOpen(false);
   }
 
   function openEdit(e, c) {
     e.preventDefault();
     e.stopPropagation();
-    setEditForm({ id: c.id, name: c.name, contact: c.contact, phone: c.phone, address: c.address });
+    setEditForm({ id: c.id, name: c.name, contact: c.contact, phone: c.phone, address: c.address, productId: "", qty: 1 });
   }
 
   async function handleEditSave(e) {
     e.preventDefault();
     setSaving(true);
     await updateCustomer(editForm.id, editForm);
+    if (editForm.productId && Number(editForm.qty) > 0) {
+      await createSale({ customerId: editForm.id, productId: editForm.productId, qty: editForm.qty, paymentStatus: "Pending" });
+    }
     setSaving(false);
     setEditForm(null);
   }
@@ -128,6 +144,34 @@ export default function Customers() {
           </div>
           <Field label="Phone" placeholder="98XXXXXXXX" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
           <Field label="Address" placeholder="Lakeside, Pokhara" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} required />
+
+          <div className="flex flex-col gap-2 rounded-xl border border-border p-3.5">
+            <span className="text-[13px] font-semibold">Product taken (optional)</span>
+            <select className="field" value={form.productId} onChange={(e) => setForm({ ...form, productId: e.target.value, qty: 1 })}>
+              <option value="">No product — just add the customer</option>
+              {products.map((p) => {
+                const avail = p.stockTotal - p.stockTaken;
+                return <option key={p.id} value={p.id} disabled={avail <= 0}>{p.name} — {money(p.price)} ({avail} available)</option>;
+              })}
+            </select>
+            {form.productId && (
+              <div className="flex items-end gap-3.5 pt-1">
+                <label className="flex flex-1 flex-col gap-2">
+                  <span className="text-[13px] font-semibold">Quantity</span>
+                  <div className="flex items-center gap-2.5 rounded-lg border border-border px-3 py-2">
+                    <button type="button" onClick={() => setForm({ ...form, qty: Math.max(1, form.qty - 1) })} className="flex h-6 w-6 items-center justify-center rounded-md text-base font-semibold hover:bg-surface-2">–</button>
+                    <span className="flex-1 text-center text-sm font-semibold">{form.qty}</span>
+                    <button type="button" onClick={() => setForm({ ...form, qty: Math.min(newAvailable, form.qty + 1) })} className="flex h-6 w-6 items-center justify-center rounded-md text-base font-semibold hover:bg-surface-2">+</button>
+                  </div>
+                </label>
+                <div className="flex-[1.4] rounded-lg bg-surface-2 px-3.5 py-3">
+                  <div className="text-[11px] font-semibold text-muted">TOTAL</div>
+                  <div className="mt-0.5 font-display text-lg font-bold">{money(newTotal)}</div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-2.5">
             <button type="button" onClick={() => setModalOpen(false)} className="btn-ghost flex-1">Cancel</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save Customer"}</button>
@@ -144,6 +188,34 @@ export default function Customers() {
             </div>
             <Field label="Phone" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} required />
             <Field label="Address" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} required />
+
+            <div className="flex flex-col gap-2 rounded-xl border border-border p-3.5">
+              <span className="text-[13px] font-semibold">Record a new product taken (optional)</span>
+              <select className="field" value={editForm.productId} onChange={(e) => setEditForm({ ...editForm, productId: e.target.value, qty: 1 })}>
+                <option value="">No new purchase</option>
+                {products.map((p) => {
+                  const avail = p.stockTotal - p.stockTaken;
+                  return <option key={p.id} value={p.id} disabled={avail <= 0}>{p.name} — {money(p.price)} ({avail} available)</option>;
+                })}
+              </select>
+              {editForm.productId && (
+                <div className="flex items-end gap-3.5 pt-1">
+                  <label className="flex flex-1 flex-col gap-2">
+                    <span className="text-[13px] font-semibold">Quantity</span>
+                    <div className="flex items-center gap-2.5 rounded-lg border border-border px-3 py-2">
+                      <button type="button" onClick={() => setEditForm({ ...editForm, qty: Math.max(1, editForm.qty - 1) })} className="flex h-6 w-6 items-center justify-center rounded-md text-base font-semibold hover:bg-surface-2">–</button>
+                      <span className="flex-1 text-center text-sm font-semibold">{editForm.qty}</span>
+                      <button type="button" onClick={() => setEditForm({ ...editForm, qty: Math.min(editAvailable, editForm.qty + 1) })} className="flex h-6 w-6 items-center justify-center rounded-md text-base font-semibold hover:bg-surface-2">+</button>
+                    </div>
+                  </label>
+                  <div className="flex-[1.4] rounded-lg bg-surface-2 px-3.5 py-3">
+                    <div className="text-[11px] font-semibold text-muted">TOTAL</div>
+                    <div className="mt-0.5 font-display text-lg font-bold">{money(editTotal)}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-2.5">
               <button type="button" onClick={() => setEditForm(null)} className="btn-ghost flex-1">Cancel</button>
               <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save Changes"}</button>

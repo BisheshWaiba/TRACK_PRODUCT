@@ -180,6 +180,7 @@ export function DataProvider({ children }) {
     const { error: err } = await supabase.from("customers").insert(row);
     if (err) throw err;
     setCustomers((prev) => [...prev, mapCustomer(row)]);
+    return id;
   }
 
   async function updateCustomer(id, patch) {

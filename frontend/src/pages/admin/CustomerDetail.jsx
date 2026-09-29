@@ -10,7 +10,7 @@ import { useData } from "../../context/DataContext";
 export default function CustomerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { customerById, salesForCustomer, productById, saleTotal, salePaymentStatus, getCustomerStats, payments, updateCustomer, deleteCustomer, loading } = useData();
+  const { customerById, salesForCustomer, productById, products, saleTotal, salePaymentStatus, getCustomerStats, payments, updateCustomer, deleteCustomer, createSale, loading } = useData();
   const customer = customerById(id);
   const [editForm, setEditForm] = useState(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -37,13 +37,16 @@ export default function CustomerDetail() {
   const initials = customer.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
   function openEdit() {
-    setEditForm({ name: customer.name, contact: customer.contact, phone: customer.phone, address: customer.address });
+    setEditForm({ name: customer.name, contact: customer.contact, phone: customer.phone, address: customer.address, productId: "", qty: 1 });
   }
 
   async function handleEditSave(e) {
     e.preventDefault();
     setSaving(true);
     await updateCustomer(customer.id, editForm);
+    if (editForm.productId && Number(editForm.qty) > 0) {
+      await createSale({ customerId: customer.id, productId: editForm.productId, qty: editForm.qty, paymentStatus: "Pending" });
+    }
     setSaving(false);
     setEditForm(null);
   }
@@ -141,20 +144,53 @@ export default function CustomerDetail() {
       </div>
 
       <Modal open={!!editForm} onClose={() => setEditForm(null)} title="Edit Customer" width="max-w-[460px]">
-        {editForm && (
-          <form onSubmit={handleEditSave} className="flex flex-col gap-4">
-            <div className="flex gap-3.5">
-              <Field label="Business Name" className="flex-1" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
-              <Field label="Contact Person" className="flex-1" value={editForm.contact} onChange={(e) => setEditForm({ ...editForm, contact: e.target.value })} required />
-            </div>
-            <Field label="Phone" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} required />
-            <Field label="Address" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} required />
-            <div className="flex gap-2.5">
-              <button type="button" onClick={() => setEditForm(null)} className="btn-ghost flex-1">Cancel</button>
-              <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save Changes"}</button>
-            </div>
-          </form>
-        )}
+        {editForm && (() => {
+          const editProduct = productById(editForm.productId);
+          const editAvailable = editProduct ? editProduct.stockTotal - editProduct.stockTaken : 0;
+          const editTotal = editProduct ? editProduct.price * editForm.qty : 0;
+          return (
+            <form onSubmit={handleEditSave} className="flex flex-col gap-4">
+              <div className="flex gap-3.5">
+                <Field label="Business Name" className="flex-1" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
+                <Field label="Contact Person" className="flex-1" value={editForm.contact} onChange={(e) => setEditForm({ ...editForm, contact: e.target.value })} required />
+              </div>
+              <Field label="Phone" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} required />
+              <Field label="Address" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} required />
+
+              <div className="flex flex-col gap-2 rounded-xl border border-border p-3.5">
+                <span className="text-[13px] font-semibold">Record a new product taken (optional)</span>
+                <select className="field" value={editForm.productId} onChange={(e) => setEditForm({ ...editForm, productId: e.target.value, qty: 1 })}>
+                  <option value="">No new purchase</option>
+                  {products.map((p) => {
+                    const avail = p.stockTotal - p.stockTaken;
+                    return <option key={p.id} value={p.id} disabled={avail <= 0}>{p.name} — {money(p.price)} ({avail} available)</option>;
+                  })}
+                </select>
+                {editForm.productId && (
+                  <div className="flex items-end gap-3.5 pt-1">
+                    <label className="flex flex-1 flex-col gap-2">
+                      <span className="text-[13px] font-semibold">Quantity</span>
+                      <div className="flex items-center gap-2.5 rounded-lg border border-border px-3 py-2">
+                        <button type="button" onClick={() => setEditForm({ ...editForm, qty: Math.max(1, editForm.qty - 1) })} className="flex h-6 w-6 items-center justify-center rounded-md text-base font-semibold hover:bg-surface-2">–</button>
+                        <span className="flex-1 text-center text-sm font-semibold">{editForm.qty}</span>
+                        <button type="button" onClick={() => setEditForm({ ...editForm, qty: Math.min(editAvailable, editForm.qty + 1) })} className="flex h-6 w-6 items-center justify-center rounded-md text-base font-semibold hover:bg-surface-2">+</button>
+                      </div>
+                    </label>
+                    <div className="flex-[1.4] rounded-lg bg-surface-2 px-3.5 py-3">
+                      <div className="text-[11px] font-semibold text-muted">TOTAL</div>
+                      <div className="mt-0.5 font-display text-lg font-bold">{money(editTotal)}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2.5">
+                <button type="button" onClick={() => setEditForm(null)} className="btn-ghost flex-1">Cancel</button>
+                <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save Changes"}</button>
+              </div>
+            </form>
+          );
+        })()}
       </Modal>
 
       <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Delete customer?" width="max-w-[400px]">
