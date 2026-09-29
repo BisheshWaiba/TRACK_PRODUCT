@@ -9,6 +9,7 @@ const NAV = [
   { to: "/sales", label: "Sales", icon: "receipt" },
   { to: "/payments", label: "Payments", icon: "wallet" },
   { to: "/reports", label: "Reports", icon: "chart" },
+  { to: "/account", label: "Account", icon: "user" },
 ];
 
 const TITLES = {
