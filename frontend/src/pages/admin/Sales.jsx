@@ -4,12 +4,12 @@ import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
 import {
   sales as initialSales,
+  payments as initialPayments,
   products,
   customers,
   customerById,
   productById,
   saleTotal,
-  salePaymentStatus,
   money,
 } from "../../data/mockData";
 
@@ -17,19 +17,32 @@ const TABS = ["All Sales", "Paid", "Partial", "Pending"];
 
 export default function Sales() {
   const [sales, setSales] = useState(initialSales);
+  const [payments, setPayments] = useState(initialPayments);
   const [tab, setTab] = useState("All Sales");
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ customerId: customers[0].id, productId: products[0].id, qty: 1, status: "Paid" });
 
-  const shown = sales.filter((s) => tab === "All Sales" || salePaymentStatus(s) === tab);
+  function paidFor(saleId) {
+    return payments.filter((p) => p.saleId === saleId).reduce((sum, p) => sum + p.amount, 0);
+  }
+  function statusFor(sale) {
+    const paid = paidFor(sale.id);
+    const total = saleTotal(sale);
+    if (paid <= 0) return "Pending";
+    if (paid < total) return "Partial";
+    return "Paid";
+  }
+
+  const shown = sales.filter((s) => tab === "All Sales" || statusFor(s) === tab);
   const product = productById(form.productId);
   const total = product ? product.price * form.qty : 0;
   const available = product ? product.stockTotal - product.stockTaken : 0;
 
   function handleSave(e) {
     e.preventDefault();
+    const saleId = "SL-" + (1042 + sales.length + 1);
     const newSale = {
-      id: "SL-" + (1042 + sales.length + 1),
+      id: saleId,
       date: new Date().toISOString().slice(0, 10),
       customerId: form.customerId,
       productId: form.productId,
@@ -37,6 +50,13 @@ export default function Sales() {
       status: "Order Placed",
     };
     setSales((prev) => [newSale, ...prev]);
+    if (form.status === "Paid" || form.status === "Partial") {
+      const amount = form.status === "Paid" ? total : Math.round(total / 2);
+      setPayments((prev) => [
+        ...prev,
+        { id: "PM-" + Date.now(), date: newSale.date, saleId, amount, method: "Cash on Delivery" },
+      ]);
+    }
     setModalOpen(false);
     setForm({ customerId: customers[0].id, productId: products[0].id, qty: 1, status: "Paid" });
   }
@@ -65,7 +85,7 @@ export default function Sales() {
         {shown.map((s) => {
           const customer = customerById(s.customerId);
           const product = productById(s.productId);
-          const status = salePaymentStatus(s);
+          const status = statusFor(s);
           return (
             <div key={s.id} className="grid min-w-[900px] grid-cols-[0.9fr_1.3fr_1.6fr_0.6fr_1fr_1fr_1fr] items-center gap-2 border-t border-border px-5 py-3.5 text-[13px] hover:bg-bg">
               <span className="text-ink-soft">{s.date}</span>

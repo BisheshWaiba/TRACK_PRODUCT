@@ -11,6 +11,7 @@ export default function Products() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [form, setForm] = useState({ name: "", category: "", price: "", bundleSize: "", stock: "" });
+  const [editForm, setEditForm] = useState(null);
 
   const categories = useMemo(() => ["All", "Low / Out of Stock", ...new Set(initialProducts.map((p) => p.category))], []);
 
@@ -23,6 +24,30 @@ export default function Products() {
 
   function handleDelete(id) {
     setProducts((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  function openEdit(p) {
+    setEditForm({ id: p.id, name: p.name, category: p.category, price: p.price, bundleSize: p.bundleSize, stockTotal: p.stockTotal, reorderAt: p.reorderAt });
+  }
+
+  function handleEditSave(e) {
+    e.preventDefault();
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === editForm.id
+          ? {
+              ...p,
+              name: editForm.name,
+              category: editForm.category || "General",
+              price: Number(editForm.price) || 0,
+              bundleSize: editForm.bundleSize,
+              stockTotal: Number(editForm.stockTotal) || 0,
+              reorderAt: Number(editForm.reorderAt) || 0,
+            }
+          : p
+      )
+    );
+    setEditForm(null);
   }
 
   function handleSave(e) {
@@ -98,7 +123,7 @@ export default function Products() {
                 {status.label}
               </Badge>
               <div className="flex gap-1.5">
-                <button className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-2">
+                <button onClick={() => openEdit(p)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-2">
                   <Icon name="edit" className="h-[13px] w-[13px] text-ink-soft" strokeWidth={1.7} />
                 </button>
                 <button onClick={() => handleDelete(p.id)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-2">
@@ -131,6 +156,31 @@ export default function Products() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={!!editForm} onClose={() => setEditForm(null)} title="Edit Product">
+        {editForm && (
+          <form onSubmit={handleEditSave} className="flex flex-col gap-4">
+            <Field label="Product Name" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
+            <div className="flex gap-3.5">
+              <Field label="Category" className="flex-1" value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} />
+              <Field label="Unit Price (NPR)" className="flex-1" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} />
+            </div>
+            <div className="flex gap-3.5">
+              <Field label="Bundle Size" className="flex-1" value={editForm.bundleSize} onChange={(e) => setEditForm({ ...editForm, bundleSize: e.target.value })} />
+              <Field label="Total Stock" className="flex-1" value={editForm.stockTotal} onChange={(e) => setEditForm({ ...editForm, stockTotal: e.target.value })} />
+            </div>
+            <Field label="Reorder At" value={editForm.reorderAt} onChange={(e) => setEditForm({ ...editForm, reorderAt: e.target.value })} />
+            <div className="flex gap-2.5">
+              <button type="button" onClick={() => setEditForm(null)} className="btn-ghost flex-1">
+                Cancel
+              </button>
+              <button type="submit" className="btn-primary flex-1">
+                Save Changes
+              </button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

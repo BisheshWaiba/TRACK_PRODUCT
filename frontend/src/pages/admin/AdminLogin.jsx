@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Icon from "../../components/icons/Icon";
 import Field from "../../components/ui/Field";
+import Modal from "../../components/ui/Modal";
 
 const perks = [
   "Products, stock, sales and payments — all in sync",
@@ -10,6 +12,7 @@ const perks = [
 
 export default function AdminLogin() {
   const navigate = useNavigate();
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   function submit(e) {
     e.preventDefault();
@@ -54,7 +57,7 @@ export default function AdminLogin() {
             <div className="flex flex-col gap-2">
               <div className="flex justify-between">
                 <span className="text-[13px] font-semibold">Password</span>
-                <a href="#" className="text-[12.5px] font-semibold text-accent hover:underline">Forgot password?</a>
+                <button type="button" onClick={() => setForgotOpen(true)} className="text-[12.5px] font-semibold text-accent hover:underline">Forgot password?</button>
               </div>
               <input type="password" defaultValue="password123" required className="field" />
             </div>
@@ -69,6 +72,13 @@ export default function AdminLogin() {
           </p>
         </form>
       </div>
+
+      <Modal open={forgotOpen} onClose={() => setForgotOpen(false)} title="Forgot password?" width="max-w-[380px]">
+        <p className="text-sm text-ink-soft">
+          Password resets for wholesaler accounts are handled by your BulkTrack administrator. Contact them directly to get a new temporary password.
+        </p>
+        <button onClick={() => setForgotOpen(false)} className="btn-primary mt-5 w-full">Got it</button>
+      </Modal>
     </div>
   );
 }
