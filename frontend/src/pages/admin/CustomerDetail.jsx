@@ -1,20 +1,17 @@
 import { Link, useParams } from "react-router-dom";
 import Icon from "../../components/icons/Icon";
 import Badge from "../../components/ui/Badge";
-import {
-  customerById,
-  salesForCustomer,
-  productById,
-  saleTotal,
-  salePaymentStatus,
-  getCustomerStats,
-  payments,
-  money,
-} from "../../data/mockData";
+import { money } from "../../lib/format";
+import { useData } from "../../context/DataContext";
 
 export default function CustomerDetail() {
   const { id } = useParams();
+  const { customerById, salesForCustomer, productById, saleTotal, salePaymentStatus, getCustomerStats, payments, loading } = useData();
   const customer = customerById(id);
+
+  if (loading) {
+    return <div className="p-8 text-sm text-muted">Loading customer…</div>;
+  }
 
   if (!customer) {
     return (

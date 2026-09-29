@@ -3,17 +3,19 @@ import Icon from "../../components/icons/Icon";
 import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
 import Field from "../../components/ui/Field";
-import { products as initialProducts, money, stockStatus } from "../../data/mockData";
+import { money } from "../../lib/format";
+import { useData } from "../../context/DataContext";
 
 export default function Products() {
-  const [products, setProducts] = useState(initialProducts);
+  const { products, stockStatus, createProduct, updateProduct, deleteProduct, loading } = useData();
   const [modalOpen, setModalOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [form, setForm] = useState({ name: "", category: "", price: "", bundleSize: "", stock: "" });
   const [editForm, setEditForm] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  const categories = useMemo(() => ["All", "Low / Out of Stock", ...new Set(initialProducts.map((p) => p.category))], []);
+  const categories = useMemo(() => ["All", "Low / Out of Stock", ...new Set(products.map((p) => p.category))], [products]);
 
   const shown = products.filter((p) => {
     const available = p.stockTotal - p.stockTaken;
@@ -22,54 +24,32 @@ export default function Products() {
     return matchesCategory && p.name.toLowerCase().includes(query.toLowerCase());
   });
 
-  function handleDelete(id) {
-    setProducts((prev) => prev.filter((p) => p.id !== id));
+  async function handleDelete(id) {
+    await deleteProduct(id);
   }
 
   function openEdit(p) {
     setEditForm({ id: p.id, name: p.name, category: p.category, price: p.price, bundleSize: p.bundleSize, stockTotal: p.stockTotal, reorderAt: p.reorderAt });
   }
 
-  function handleEditSave(e) {
+  async function handleEditSave(e) {
     e.preventDefault();
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === editForm.id
-          ? {
-              ...p,
-              name: editForm.name,
-              category: editForm.category || "General",
-              price: Number(editForm.price) || 0,
-              bundleSize: editForm.bundleSize,
-              stockTotal: Number(editForm.stockTotal) || 0,
-              reorderAt: Number(editForm.reorderAt) || 0,
-            }
-          : p
-      )
-    );
+    setSaving(true);
+    await updateProduct(editForm.id, editForm);
+    setSaving(false);
     setEditForm(null);
   }
 
-  function handleSave(e) {
+  async function handleSave(e) {
     e.preventDefault();
-    const id = form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 30) + "-" + Date.now().toString(36);
-    setProducts((prev) => [
-      ...prev,
-      {
-        id,
-        name: form.name,
-        category: form.category || "General",
-        price: Number(form.price) || 0,
-        bundleSize: form.bundleSize || "1 item / bundle",
-        items: [],
-        stockTotal: Number(form.stock) || 0,
-        stockTaken: 0,
-        reorderAt: Math.max(5, Math.round((Number(form.stock) || 0) * 0.2)),
-      },
-    ]);
+    setSaving(true);
+    await createProduct(form);
+    setSaving(false);
     setForm({ name: "", category: "", price: "", bundleSize: "", stock: "" });
     setModalOpen(false);
   }
+
+  if (loading) return <div className="p-8 text-sm text-muted">Loading products…</div>;
 
   return (
     <div className="flex flex-col gap-5">
@@ -151,8 +131,8 @@ export default function Products() {
             <button type="button" onClick={() => setModalOpen(false)} className="btn-ghost flex-1">
               Cancel
             </button>
-            <button type="submit" className="btn-primary flex-1">
-              Save Product
+            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">
+              {saving ? "Saving…" : "Save Product"}
             </button>
           </div>
         </form>
@@ -175,8 +155,8 @@ export default function Products() {
               <button type="button" onClick={() => setEditForm(null)} className="btn-ghost flex-1">
                 Cancel
               </button>
-              <button type="submit" className="btn-primary flex-1">
-                Save Changes
+              <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">
+                {saving ? "Saving…" : "Save Changes"}
               </button>
             </div>
           </form>

@@ -2,10 +2,14 @@ import { Link } from "react-router-dom";
 import Icon from "../../components/icons/Icon";
 import Badge from "../../components/ui/Badge";
 import StatCard from "../../components/ui/StatCard";
-import { products, sales, payments, customerById, productById, saleTotal, salePaymentStatus, dashboardTotals, money } from "../../data/mockData";
+import { money } from "../../lib/format";
+import { useData } from "../../context/DataContext";
 
 export default function AdminDashboard() {
+  const { products, sales, payments, customerById, productById, saleTotal, salePaymentStatus, dashboardTotals, loading } = useData();
   const totals = dashboardTotals();
+
+  if (loading) return <div className="p-8 text-sm text-muted">Loading dashboard…</div>;
   const recentSales = [...sales].slice(0, 4);
   const recentPayments = [...payments].slice(0, 1);
   const lowStock = products

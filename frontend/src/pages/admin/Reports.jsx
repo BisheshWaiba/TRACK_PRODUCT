@@ -1,21 +1,16 @@
 import { useState } from "react";
 import Icon from "../../components/icons/Icon";
 import Badge from "../../components/ui/Badge";
-import {
-  products,
-  customers,
-  sales,
-  stockMovements,
-  productById,
-  saleTotal,
-  getCustomerStats,
-  money,
-} from "../../data/mockData";
+import { money } from "../../lib/format";
+import { useData } from "../../context/DataContext";
 
 const TABS = ["Sales Report", "Inventory Report", "Payment Report", "Stock Movement History"];
 
 export default function Reports() {
+  const { products, customers, sales, stockMovements, productById, saleTotal, getCustomerStats, loading } = useData();
   const [tab, setTab] = useState("Sales Report");
+
+  if (loading) return <div className="p-8 text-sm text-muted">Loading reports…</div>;
 
   const topProducts = [...products]
     .map((p) => ({ ...p, revenue: sales.filter((s) => s.productId === p.id).reduce((sum, s) => sum + saleTotal(s), 0) }))

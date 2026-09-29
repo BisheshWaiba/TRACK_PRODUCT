@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Icon from "../../components/icons/Icon";
 import Field from "../../components/ui/Field";
 import Modal from "../../components/ui/Modal";
+import { useAuth } from "../../context/AuthContext";
 
 const perks = [
   "Products, stock, sales and payments — all in sync",
@@ -12,11 +13,26 @@ const perks = [
 
 export default function AdminLogin() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { signIn } = useAuth();
   const [forgotOpen, setForgotOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
-    navigate("/");
+    setError("");
+    setSubmitting(true);
+    try {
+      await signIn(email, password);
+      navigate(location.state?.from?.pathname || "/", { replace: true });
+    } catch (err) {
+      setError(err.message === "Invalid login credentials" ? "Incorrect email or password." : err.message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -53,19 +69,26 @@ export default function AdminLogin() {
             <p className="text-sm text-ink-soft">Log in with your BulkTrack wholesaler account.</p>
           </div>
           <div className="flex flex-col gap-4">
-            <Field label="Email" type="email" defaultValue="suresh.koirala@bulktrack.example" required />
+            {error && (
+              <div className="rounded-lg border-[1.5px] border-danger bg-danger-soft px-3.5 py-2.5 text-[13px] font-semibold text-danger-dark">
+                {error}
+              </div>
+            )}
+            <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <div className="flex flex-col gap-2">
               <div className="flex justify-between">
                 <span className="text-[13px] font-semibold">Password</span>
                 <button type="button" onClick={() => setForgotOpen(true)} className="text-[12.5px] font-semibold text-accent hover:underline">Forgot password?</button>
               </div>
-              <input type="password" defaultValue="password123" required className="field" />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="field" />
             </div>
             <label className="flex items-center gap-2 text-[13.5px] text-ink-soft">
               <input type="checkbox" defaultChecked className="h-4 w-4 accent-accent" />
               Keep me signed in on this device
             </label>
-            <button type="submit" className="btn-primary w-full !py-3.5">Log In</button>
+            <button type="submit" disabled={submitting} className="btn-primary w-full !py-3.5 disabled:opacity-60">
+              {submitting ? "Logging in…" : "Log In"}
+            </button>
           </div>
           <p className="text-center text-[13px] text-muted">
             Need a wholesaler account? Ask your BulkTrack administrator to invite you.

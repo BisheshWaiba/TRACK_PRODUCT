@@ -1,22 +1,52 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Icon from "../../components/icons/Icon";
 import Field from "../../components/ui/Field";
 import Modal from "../../components/ui/Modal";
+import { supabase } from "../../lib/supabaseClient";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Account() {
+  const navigate = useNavigate();
+  const { user, signIn, signOut } = useAuth();
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [profile, setProfile] = useState({ name: "Suresh Koirala", email: "suresh.koirala@bulktrack.example", phone: "980-1234567" });
+  const [profile, setProfile] = useState({
+    name: user?.user_metadata?.full_name || "",
+    email: user?.email || "",
+    phone: user?.user_metadata?.phone || "",
+  });
   const [profileMessage, setProfileMessage] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
   const [pwForm, setPwForm] = useState({ current: "", next: "" });
   const [pwMessage, setPwMessage] = useState("");
+  const [savingPw, setSavingPw] = useState(false);
 
-  function handleSaveProfile() {
-    setProfileMessage("Profile updated.");
-    setTimeout(() => setProfileMessage(""), 2500);
+  const initials = (profile.name || user?.email || "?")
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  async function handleSaveProfile() {
+    setSavingProfile(true);
+    setProfileMessage("");
+    try {
+      const payload = { data: { full_name: profile.name, phone: profile.phone } };
+      const emailChanged = profile.email !== user?.email;
+      if (emailChanged) payload.email = profile.email;
+      const { error } = await supabase.auth.updateUser(payload);
+      if (error) throw error;
+      setProfileMessage(emailChanged ? "Saved. Check your new email to confirm the change." : "Profile updated.");
+    } catch (err) {
+      setProfileMessage(err.message);
+    } finally {
+      setSavingProfile(false);
+      setTimeout(() => setProfileMessage(""), 4000);
+    }
   }
 
-  function handleUpdatePassword() {
+  async function handleUpdatePassword() {
     if (!pwForm.current || !pwForm.next) {
       setPwMessage("Enter your current and new password.");
       return;
@@ -25,9 +55,31 @@ export default function Account() {
       setPwMessage("New password must be at least 8 characters.");
       return;
     }
-    setPwMessage("Password updated.");
-    setPwForm({ current: "", next: "" });
-    setTimeout(() => setPwMessage(""), 2500);
+    setSavingPw(true);
+    setPwMessage("");
+    try {
+      await signIn(user.email, pwForm.current);
+    } catch {
+      setSavingPw(false);
+      setPwMessage("Current password is incorrect.");
+      return;
+    }
+    try {
+      const { error } = await supabase.auth.updateUser({ password: pwForm.next });
+      if (error) throw error;
+      setPwMessage("Password updated.");
+      setPwForm({ current: "", next: "" });
+    } catch (err) {
+      setPwMessage(err.message);
+    } finally {
+      setSavingPw(false);
+      setTimeout(() => setPwMessage(""), 4000);
+    }
+  }
+
+  async function handleLogout() {
+    await signOut();
+    navigate("/login", { replace: true });
   }
 
   return (
@@ -35,9 +87,9 @@ export default function Account() {
       <div className="flex flex-col gap-6">
         <div className="card flex flex-col gap-4">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-2 text-xl font-bold text-ink-soft">SK</div>
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-2 text-xl font-bold text-ink-soft">{initials}</div>
             <div>
-              <div className="font-display text-lg font-bold">Suresh Koirala</div>
+              <div className="font-display text-lg font-bold">{profile.name || "Wholesaler Admin"}</div>
               <div className="mt-0.5 text-[13px] text-muted">Wholesaler Admin · BulkTrack HQ</div>
             </div>
           </div>
@@ -50,7 +102,9 @@ export default function Account() {
             <Field label="Phone" value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} className="flex-1" />
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={handleSaveProfile} className="btn-primary self-start">Save Changes</button>
+            <button onClick={handleSaveProfile} disabled={savingProfile} className="btn-primary self-start disabled:opacity-60">
+              {savingProfile ? "Saving…" : "Save Changes"}
+            </button>
             {profileMessage && <span className="text-[13px] font-semibold text-teal">{profileMessage}</span>}
           </div>
         </div>
@@ -62,7 +116,9 @@ export default function Account() {
             <Field label="New Password" type="password" className="flex-1" value={pwForm.next} onChange={(e) => setPwForm({ ...pwForm, next: e.target.value })} />
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={handleUpdatePassword} className="btn-ghost self-start">Update Password</button>
+            <button onClick={handleUpdatePassword} disabled={savingPw} className="btn-ghost self-start disabled:opacity-60">
+              {savingPw ? "Updating…" : "Update Password"}
+            </button>
             {pwMessage && <span className={`text-[13px] font-semibold ${pwMessage === "Password updated." ? "text-teal" : "text-danger"}`}>{pwMessage}</span>}
           </div>
         </div>
@@ -75,7 +131,9 @@ export default function Account() {
             <Icon name="clock" className="mt-0.5 h-[17px] w-[17px] text-muted" strokeWidth={1.7} />
             <div>
               <div className="text-[13px] font-semibold">Last login</div>
-              <div className="mt-0.5 text-[12.5px] text-muted">Today, 9:14 AM · Kathmandu, Nepal</div>
+              <div className="mt-0.5 text-[12.5px] text-muted">
+                {user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : "—"}
+              </div>
             </div>
           </div>
           <div className="flex items-start gap-3">
@@ -102,9 +160,9 @@ export default function Account() {
         <p className="mb-5 text-sm text-ink-soft">You'll be signed out of the BulkTrack wholesaler dashboard on this device.</p>
         <div className="flex gap-2.5">
           <button onClick={() => setConfirmOpen(false)} className="btn-ghost flex-1">Cancel</button>
-          <Link to="/login" className="flex-1 rounded-lg bg-danger py-3 text-center text-[13.5px] font-semibold text-white">
+          <button onClick={handleLogout} className="flex-1 rounded-lg bg-danger py-3 text-center text-[13.5px] font-semibold text-white">
             Log Out
-          </Link>
+          </button>
         </div>
       </Modal>
     </div>

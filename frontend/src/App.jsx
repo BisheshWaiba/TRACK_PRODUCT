@@ -1,5 +1,8 @@
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 
+import { AuthProvider } from "./context/AuthContext";
+import { DataProvider } from "./context/DataContext";
+import RequireAuth from "./components/RequireAuth";
 import AdminLayout from "./components/layout/AdminLayout";
 
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -26,23 +29,34 @@ function NotFound() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<AdminLogin />} />
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<AdminLogin />} />
 
-        <Route path="/" element={<AdminLayout />}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="products" element={<Products />} />
-          <Route path="inventory" element={<Inventory />} />
-          <Route path="customers" element={<Customers />} />
-          <Route path="customers/:id" element={<CustomerDetail />} />
-          <Route path="sales" element={<Sales />} />
-          <Route path="payments" element={<Payments />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="account" element={<Account />} />
-        </Route>
+          <Route
+            path="/"
+            element={
+              <RequireAuth>
+                <DataProvider>
+                  <AdminLayout />
+                </DataProvider>
+              </RequireAuth>
+            }
+          >
+            <Route index element={<AdminDashboard />} />
+            <Route path="products" element={<Products />} />
+            <Route path="inventory" element={<Inventory />} />
+            <Route path="customers" element={<Customers />} />
+            <Route path="customers/:id" element={<CustomerDetail />} />
+            <Route path="sales" element={<Sales />} />
+            <Route path="payments" element={<Payments />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="account" element={<Account />} />
+          </Route>
 
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

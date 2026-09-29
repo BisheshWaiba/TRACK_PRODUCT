@@ -1,5 +1,6 @@
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import Icon from "../icons/Icon";
+import { useAuth } from "../../context/AuthContext";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: "grid", end: true },
@@ -25,10 +26,19 @@ const TITLES = {
 
 export default function AdminLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const title =
     TITLES[location.pathname] ||
     (location.pathname.startsWith("/customers/") ? "Customer Detail" : "BulkTrack Admin");
   const onAccount = location.pathname === "/account";
+  const displayName = user?.user_metadata?.full_name || user?.email || "Wholesaler Admin";
+  const displayRole = user?.user_metadata?.role || user?.email || "";
+
+  async function handleLogout() {
+    await signOut();
+    navigate("/login", { replace: true });
+  }
 
   return (
     <div className="flex min-h-screen bg-bg">
@@ -69,17 +79,17 @@ export default function AdminLayout() {
               <Icon name="user" className="h-[17px] w-[17px] text-sidebar-text" strokeWidth={1.7} />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[13.5px] font-semibold text-white">Suresh Koirala</div>
-              <div className="text-[11.5px] text-sidebar-muted">Wholesaler Admin</div>
+              <div className="truncate text-[13.5px] font-semibold text-white">{displayName}</div>
+              <div className="truncate text-[11.5px] text-sidebar-muted">{displayRole}</div>
             </div>
           </Link>
-          <Link
-            to="/login"
+          <button
+            onClick={handleLogout}
             title="Log out"
             className="flex h-[26px] w-[26px] flex-shrink-0 items-center justify-center rounded-md"
           >
             <Icon name="out" className="h-4 w-4 text-sidebar-muted" strokeWidth={1.7} />
-          </Link>
+          </button>
         </div>
       </div>
 

@@ -4,25 +4,30 @@ import Icon from "../../components/icons/Icon";
 import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
 import Field from "../../components/ui/Field";
-import { customers as initialCustomers, getCustomerStats, money } from "../../data/mockData";
+import { money } from "../../lib/format";
+import { useData } from "../../context/DataContext";
 
 export default function Customers() {
-  const [customers, setCustomers] = useState(initialCustomers);
+  const { customers, getCustomerStats, createCustomer, loading } = useData();
   const [modalOpen, setModalOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [form, setForm] = useState({ name: "", contact: "", phone: "", address: "" });
+  const [saving, setSaving] = useState(false);
 
   const shown = customers.filter(
     (c) => c.name.toLowerCase().includes(query.toLowerCase()) || c.contact.toLowerCase().includes(query.toLowerCase())
   );
 
-  function handleSave(e) {
+  async function handleSave(e) {
     e.preventDefault();
-    const id = form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + Date.now().toString(36);
-    setCustomers((prev) => [...prev, { id, ...form, city: form.address.split(",").pop()?.trim() || "", joined: new Date().toISOString().slice(0, 10) }]);
+    setSaving(true);
+    await createCustomer(form);
+    setSaving(false);
     setForm({ name: "", contact: "", phone: "", address: "" });
     setModalOpen(false);
   }
+
+  if (loading) return <div className="p-8 text-sm text-muted">Loading customers…</div>;
 
   return (
     <div className="flex flex-col gap-5">
@@ -81,7 +86,7 @@ export default function Customers() {
           <Field label="Address" placeholder="Lakeside, Pokhara" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} required />
           <div className="flex gap-2.5">
             <button type="button" onClick={() => setModalOpen(false)} className="btn-ghost flex-1">Cancel</button>
-            <button type="submit" className="btn-primary flex-1">Save Customer</button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save Customer"}</button>
           </div>
         </form>
       </Modal>

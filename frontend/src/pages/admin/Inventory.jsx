@@ -4,40 +4,38 @@ import Badge from "../../components/ui/Badge";
 import ProgressBar from "../../components/ui/ProgressBar";
 import Modal from "../../components/ui/Modal";
 import Field from "../../components/ui/Field";
-import { products as initialProducts, stockMovements as initialMovements, productById, dashboardTotals, stockStatus } from "../../data/mockData";
+import { useData } from "../../context/DataContext";
 
 export default function Inventory() {
-  const [products, setProducts] = useState(initialProducts);
-  const [movements, setMovements] = useState(initialMovements);
+  const { products, stockMovements: movements, productById, dashboardTotals, stockStatus, createStockMovement, loading } = useData();
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ productId: products[0].id, type: "in", qty: "", reference: "" });
+  const [form, setForm] = useState({ productId: "", type: "in", qty: "", reference: "" });
+  const [saving, setSaving] = useState(false);
 
   const totals = dashboardTotals();
   const today = new Date().toISOString().slice(0, 10);
 
-  function handleSave(e) {
+  function openModal() {
+    setForm({ productId: products[0]?.id || "", type: "in", qty: "", reference: "" });
+    setModalOpen(true);
+  }
+
+  async function handleSave(e) {
     e.preventDefault();
     const qty = Number(form.qty) || 0;
     if (qty <= 0) return;
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === form.productId
-          ? { ...p, stockTotal: form.type === "in" ? p.stockTotal + qty : p.stockTotal, stockTaken: form.type === "out" ? p.stockTaken + qty : p.stockTaken }
-          : p
-      )
-    );
-    setMovements((prev) => [
-      { id: "SM-" + Date.now(), date: new Date().toISOString().slice(0, 10), productId: form.productId, type: form.type, qty, reference: form.reference || "Manual adjustment" },
-      ...prev,
-    ]);
-    setForm({ productId: products[0].id, type: "in", qty: "", reference: "" });
+    setSaving(true);
+    await createStockMovement(form);
+    setSaving(false);
     setModalOpen(false);
   }
+
+  if (loading) return <div className="p-8 text-sm text-muted">Loading inventory…</div>;
 
   return (
     <div className="flex flex-col gap-7">
       <div className="flex justify-end">
-        <button onClick={() => setModalOpen(true)} className="btn-primary">
+        <button onClick={openModal} className="btn-primary">
           <Icon name="plus" className="h-[15px] w-[15px]" strokeWidth={2.2} />
           Record Stock Movement
         </button>
@@ -122,7 +120,7 @@ export default function Inventory() {
           <Field label="Reference / Reason" placeholder="Supplier restock #RS-119" value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} />
           <div className="flex gap-2.5">
             <button type="button" onClick={() => setModalOpen(false)} className="btn-ghost flex-1">Cancel</button>
-            <button type="submit" className="btn-primary flex-1">Save Movement</button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save Movement"}</button>
           </div>
         </form>
       </Modal>
