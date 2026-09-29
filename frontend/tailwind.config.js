@@ -40,7 +40,7 @@ export default {
         },
       },
       fontFamily: {
-        display: ["'Space Grotesk'", "sans-serif"],
+        display: ["'Bricolage Grotesque'", "sans-serif"],
         body: ["'IBM Plex Sans'", "sans-serif"],
         mono: ["'IBM Plex Mono'", "monospace"],
       },
