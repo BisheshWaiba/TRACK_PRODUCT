@@ -13,7 +13,7 @@ export default function AdminLogin() {
 
   function submit(e) {
     e.preventDefault();
-    navigate("/admin");
+    navigate("/");
   }
 
   return (

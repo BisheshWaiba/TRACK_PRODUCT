@@ -20,7 +20,7 @@ export default function CustomerDetail() {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
         <p className="text-base font-semibold">Customer not found</p>
-        <Link to="/admin/customers" className="btn-primary">Back to Customers</Link>
+        <Link to="/customers" className="btn-primary">Back to Customers</Link>
       </div>
     );
   }
@@ -34,7 +34,7 @@ export default function CustomerDetail() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-2 text-[13px]">
-        <Link to="/admin/customers" className="font-semibold text-muted hover:text-ink">Customers</Link>
+        <Link to="/customers" className="font-semibold text-muted hover:text-ink">Customers</Link>
         <span className="text-muted">/</span>
         <span className="font-bold">{customer.name}</span>
       </div>

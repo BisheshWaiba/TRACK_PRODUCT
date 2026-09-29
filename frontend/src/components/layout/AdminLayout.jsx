@@ -2,38 +2,38 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import Icon from "../icons/Icon";
 
 const NAV = [
-  { to: "/admin", label: "Dashboard", icon: "grid", end: true },
-  { to: "/admin/products", label: "Products", icon: "box" },
-  { to: "/admin/inventory", label: "Inventory", icon: "layers" },
-  { to: "/admin/customers", label: "Customers", icon: "users" },
-  { to: "/admin/sales", label: "Sales", icon: "receipt" },
-  { to: "/admin/payments", label: "Payments", icon: "wallet" },
-  { to: "/admin/reports", label: "Reports", icon: "chart" },
+  { to: "/", label: "Dashboard", icon: "grid", end: true },
+  { to: "/products", label: "Products", icon: "box" },
+  { to: "/inventory", label: "Inventory", icon: "layers" },
+  { to: "/customers", label: "Customers", icon: "users" },
+  { to: "/sales", label: "Sales", icon: "receipt" },
+  { to: "/payments", label: "Payments", icon: "wallet" },
+  { to: "/reports", label: "Reports", icon: "chart" },
 ];
 
 const TITLES = {
-  "/admin": "Dashboard",
-  "/admin/products": "Products",
-  "/admin/inventory": "Inventory",
-  "/admin/customers": "Customers",
-  "/admin/sales": "Sales",
-  "/admin/payments": "Payments",
-  "/admin/reports": "Reports",
-  "/admin/account": "Account",
+  "/": "Dashboard",
+  "/products": "Products",
+  "/inventory": "Inventory",
+  "/customers": "Customers",
+  "/sales": "Sales",
+  "/payments": "Payments",
+  "/reports": "Reports",
+  "/account": "Account",
 };
 
 export default function AdminLayout() {
   const location = useLocation();
   const title =
     TITLES[location.pathname] ||
-    (location.pathname.startsWith("/admin/customers/") ? "Customer Detail" : "BulkTrack Admin");
-  const onAccount = location.pathname === "/admin/account";
+    (location.pathname.startsWith("/customers/") ? "Customer Detail" : "BulkTrack Admin");
+  const onAccount = location.pathname === "/account";
 
   return (
     <div className="flex min-h-screen bg-bg">
       <div className="flex w-[250px] flex-shrink-0 flex-col justify-between bg-sidebar p-4 text-sidebar-text">
         <div className="flex flex-col gap-6">
-          <Link to="/admin" className="flex items-center gap-2 px-2">
+          <Link to="/" className="flex items-center gap-2 px-2">
             <Icon name="bundle" className="h-6 w-6 text-accent" strokeWidth={1.6} />
             <span className="font-display text-[19px] font-bold text-white">BulkTrack</span>
           </Link>
@@ -63,7 +63,7 @@ export default function AdminLayout() {
             onAccount ? "bg-sidebar-hover" : ""
           }`}
         >
-          <Link to="/admin/account" className="flex min-w-0 flex-1 items-center gap-2.5">
+          <Link to="/account" className="flex min-w-0 flex-1 items-center gap-2.5">
             <div className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full bg-sidebar-hover">
               <Icon name="user" className="h-[17px] w-[17px] text-sidebar-text" strokeWidth={1.7} />
             </div>
@@ -73,7 +73,7 @@ export default function AdminLayout() {
             </div>
           </Link>
           <Link
-            to="/admin/login"
+            to="/login"
             title="Log out"
             className="flex h-[26px] w-[26px] flex-shrink-0 items-center justify-center rounded-md"
           >

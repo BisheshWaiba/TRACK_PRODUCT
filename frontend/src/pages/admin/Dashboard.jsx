@@ -65,7 +65,7 @@ export default function AdminDashboard() {
               </div>
             </div>
           ))}
-          <Link to="/admin/payments" className="text-[13px] font-semibold text-accent hover:underline">
+          <Link to="/payments" className="text-[13px] font-semibold text-accent hover:underline">
             View all payments →
           </Link>
         </div>
@@ -75,7 +75,7 @@ export default function AdminDashboard() {
         <div className="card !p-0 overflow-hidden">
           <div className="flex items-center justify-between border-b border-border p-5">
             <span className="text-[14.5px] font-semibold">Recent transactions</span>
-            <Link to="/admin/sales" className="text-[13px] font-semibold text-accent hover:underline">
+            <Link to="/sales" className="text-[13px] font-semibold text-accent hover:underline">
               View all
             </Link>
           </div>
@@ -128,7 +128,7 @@ export default function AdminDashboard() {
               </div>
             </div>
           ))}
-          <Link to="/admin/inventory" className="btn-ghost mt-1 justify-center">
+          <Link to="/inventory" className="btn-ghost mt-1 justify-center">
             Go to Inventory
           </Link>
         </div>

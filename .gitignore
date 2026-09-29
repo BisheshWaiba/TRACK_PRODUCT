@@ -26,6 +26,9 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
+# Local Claude Code settings (machine-specific paths, personal hook config)
+.claude/settings.local.json
+
 # Python (if a backend gets added later)
 __pycache__/
 *.pyc

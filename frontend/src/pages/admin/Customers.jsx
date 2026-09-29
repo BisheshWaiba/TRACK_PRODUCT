@@ -47,7 +47,7 @@ export default function Customers() {
           const initials = c.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
           return (
             <Link
-              to={`/admin/customers/${c.id}`}
+              to={`/customers/${c.id}`}
               key={c.id}
               className="grid min-w-[900px] grid-cols-[1.8fr_1.3fr_1.2fr_1fr_1.1fr_1fr] items-center gap-2 border-t border-border px-5 py-4 text-[13px] hover:bg-bg"
             >

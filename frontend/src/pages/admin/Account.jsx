@@ -73,7 +73,7 @@ export default function Account() {
         <p className="mb-5 text-sm text-ink-soft">You'll be signed out of the BulkTrack wholesaler dashboard on this device.</p>
         <div className="flex gap-2.5">
           <button onClick={() => setConfirmOpen(false)} className="btn-ghost flex-1">Cancel</button>
-          <Link to="/admin/login" className="flex-1 rounded-lg bg-danger py-3 text-center text-[13.5px] font-semibold text-white">
+          <Link to="/login" className="flex-1 rounded-lg bg-danger py-3 text-center text-[13.5px] font-semibold text-white">
             Log Out
           </Link>
         </div>
