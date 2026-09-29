@@ -32,7 +32,7 @@ export default function AdminLayout() {
 
   return (
     <div className="flex min-h-screen bg-bg">
-      <div className="flex w-[250px] flex-shrink-0 flex-col justify-between bg-sidebar p-4 text-sidebar-text">
+      <div className="sticky top-0 flex h-screen w-[250px] flex-shrink-0 flex-col justify-between overflow-y-auto bg-sidebar p-4 text-sidebar-text">
         <div className="flex flex-col gap-6">
           <Link to="/" className="flex items-center gap-2 px-2">
             <Icon name="bundle" className="h-6 w-6 text-accent" strokeWidth={1.6} />
