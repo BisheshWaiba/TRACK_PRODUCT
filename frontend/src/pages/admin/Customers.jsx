@@ -8,11 +8,14 @@ import { money } from "../../lib/format";
 import { useData } from "../../context/DataContext";
 
 export default function Customers() {
-  const { customers, getCustomerStats, createCustomer, loading } = useData();
+  const { customers, getCustomerStats, createCustomer, updateCustomer, deleteCustomer, loading } = useData();
   const [modalOpen, setModalOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [form, setForm] = useState({ name: "", contact: "", phone: "", address: "" });
+  const [editForm, setEditForm] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const shown = customers.filter(
     (c) => c.name.toLowerCase().includes(query.toLowerCase()) || c.contact.toLowerCase().includes(query.toLowerCase())
@@ -25,6 +28,39 @@ export default function Customers() {
     setSaving(false);
     setForm({ name: "", contact: "", phone: "", address: "" });
     setModalOpen(false);
+  }
+
+  function openEdit(e, c) {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditForm({ id: c.id, name: c.name, contact: c.contact, phone: c.phone, address: c.address });
+  }
+
+  async function handleEditSave(e) {
+    e.preventDefault();
+    setSaving(true);
+    await updateCustomer(editForm.id, editForm);
+    setSaving(false);
+    setEditForm(null);
+  }
+
+  function openDelete(e, c) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDeleteError("");
+    setDeleteTarget(c);
+  }
+
+  async function handleDelete() {
+    setSaving(true);
+    try {
+      await deleteCustomer(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch (err) {
+      setDeleteError(err.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) return <div className="p-8 text-sm text-muted">Loading customers…</div>;
@@ -43,8 +79,8 @@ export default function Customers() {
       </div>
 
       <div className="overflow-x-auto rounded-xl2 border border-border bg-surface">
-        <div className="grid min-w-[900px] grid-cols-[1.8fr_1.3fr_1.2fr_1fr_1.1fr_1fr] gap-2 bg-surface-2 px-5 py-3.5 text-[11px] font-bold tracking-wide text-muted">
-          <span>BUSINESS / CONTACT</span><span>PHONE</span><span>UNITS TAKEN</span><span>TOTAL PURCHASES</span><span>OUTSTANDING</span><span>STATUS</span>
+        <div className="grid min-w-[980px] grid-cols-[1.7fr_1.1fr_1fr_1fr_1fr_0.9fr_0.8fr] gap-2 bg-surface-2 px-5 py-3.5 text-[11px] font-bold tracking-wide text-muted">
+          <span>BUSINESS / CONTACT</span><span>PHONE</span><span>UNITS TAKEN</span><span>TOTAL PURCHASES</span><span>OUTSTANDING</span><span>STATUS</span><span>ACTIONS</span>
         </div>
         {shown.map((c) => {
           const stats = getCustomerStats(c.id);
@@ -54,7 +90,7 @@ export default function Customers() {
             <Link
               to={`/customers/${c.id}`}
               key={c.id}
-              className="grid min-w-[900px] grid-cols-[1.8fr_1.3fr_1.2fr_1fr_1.1fr_1fr] items-center gap-2 border-t border-border px-5 py-4 text-[13px] hover:bg-bg"
+              className="grid min-w-[980px] grid-cols-[1.7fr_1.1fr_1fr_1fr_1fr_0.9fr_0.8fr] items-center gap-2 border-t border-border px-5 py-4 text-[13px] hover:bg-bg"
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-[13px] font-bold text-ink-soft">
@@ -70,6 +106,14 @@ export default function Customers() {
               <span className="font-semibold">{money(stats.totalPurchases)}</span>
               <span className={stats.outstanding > 0 ? "font-semibold text-danger" : "font-semibold text-teal"}>{money(stats.outstanding)}</span>
               <Badge tone={status === "Paid Up" ? "teal" : status === "Partial" ? "slate" : "accent"}>{status}</Badge>
+              <div className="flex gap-1.5">
+                <button onClick={(e) => openEdit(e, c)} title="Edit customer" className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-2">
+                  <Icon name="edit" className="h-[13px] w-[13px] text-ink-soft" strokeWidth={1.7} />
+                </button>
+                <button onClick={(e) => openDelete(e, c)} title="Delete customer" className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-2">
+                  <Icon name="trash" className="h-[13px] w-[13px] text-danger" strokeWidth={1.7} />
+                </button>
+              </div>
             </Link>
           );
         })}
@@ -89,6 +133,44 @@ export default function Customers() {
             <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save Customer"}</button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={!!editForm} onClose={() => setEditForm(null)} title="Edit Customer" width="max-w-[460px]">
+        {editForm && (
+          <form onSubmit={handleEditSave} className="flex flex-col gap-4">
+            <div className="flex gap-3.5">
+              <Field label="Business Name" className="flex-1" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
+              <Field label="Contact Person" className="flex-1" value={editForm.contact} onChange={(e) => setEditForm({ ...editForm, contact: e.target.value })} required />
+            </div>
+            <Field label="Phone" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} required />
+            <Field label="Address" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} required />
+            <div className="flex gap-2.5">
+              <button type="button" onClick={() => setEditForm(null)} className="btn-ghost flex-1">Cancel</button>
+              <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save Changes"}</button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete customer?" width="max-w-[400px]">
+        {deleteTarget && (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-ink-soft">
+              This removes <span className="font-semibold text-ink">{deleteTarget.name}</span> permanently. This can't be undone.
+            </p>
+            {deleteError && (
+              <div className="rounded-lg border-[1.5px] border-danger bg-danger-soft px-3.5 py-2.5 text-[13px] font-semibold text-danger-dark">
+                {deleteError}
+              </div>
+            )}
+            <div className="flex gap-2.5">
+              <button type="button" onClick={() => setDeleteTarget(null)} className="btn-ghost flex-1">Cancel</button>
+              <button onClick={handleDelete} disabled={saving} className="flex-1 rounded-lg bg-danger py-3 text-[13.5px] font-semibold text-white disabled:opacity-60">
+                {saving ? "Deleting…" : "Delete Customer"}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

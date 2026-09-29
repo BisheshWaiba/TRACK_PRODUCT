@@ -182,6 +182,28 @@ export function DataProvider({ children }) {
     setCustomers((prev) => [...prev, mapCustomer(row)]);
   }
 
+  async function updateCustomer(id, patch) {
+    const row = {
+      name: patch.name,
+      contact: patch.contact,
+      phone: patch.phone,
+      address: patch.address,
+      city: patch.address.split(",").pop()?.trim() || "",
+    };
+    const { error: err } = await supabase.from("customers").update(row).eq("id", id);
+    if (err) throw err;
+    setCustomers((prev) => prev.map((c) => (c.id === id ? { ...c, ...row } : c)));
+  }
+
+  async function deleteCustomer(id) {
+    const { error: err } = await supabase.from("customers").delete().eq("id", id);
+    if (err) {
+      if (err.code === "23503") throw new Error("Can't delete this customer — they have sales on record. Remove their sales first.");
+      throw err;
+    }
+    setCustomers((prev) => prev.filter((c) => c.id !== id));
+  }
+
   async function createPayment({ saleId, amount, method, date }) {
     const id = newId("PM");
     const row = { id, date: date || new Date().toISOString().slice(0, 10), sale_id: saleId, amount: Number(amount) || 0, method: method || "Cash on Delivery" };
@@ -260,6 +282,8 @@ export function DataProvider({ children }) {
     updateProduct,
     deleteProduct,
     createCustomer,
+    updateCustomer,
+    deleteCustomer,
     createSale,
     createPayment,
     createStockMovement,
