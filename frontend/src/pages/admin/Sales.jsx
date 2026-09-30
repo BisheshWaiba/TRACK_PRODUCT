@@ -75,13 +75,13 @@ export default function Sales() {
       </div>
 
       {/* Mobile cards */}
-      <div className="flex flex-col gap-3 sm:hidden">
+      <div className="flex flex-col gap-2 sm:hidden">
         {shown.map((s) => {
           const customer = customerById(s.customerId);
           const product = productById(s.productId);
           const status = salePaymentStatus(s);
           return (
-            <div key={s.id} className="flex flex-col gap-2 rounded-xl2 border border-border bg-surface p-4">
+            <div key={s.id} className="flex flex-col gap-2 rounded-xl2 border border-border bg-surface p-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="font-semibold">{customer?.name}</div>

@@ -95,7 +95,7 @@ export default function CustomerDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
         <div className="card"><span className="text-xs font-semibold text-muted">TOTAL PURCHASES</span><div className="mt-1.5 font-display text-xl font-bold">{money(stats.totalPurchases)}</div></div>
         <div className="card"><span className="text-xs font-semibold text-muted">TOTAL PAID</span><div className="mt-1.5 font-display text-xl font-bold text-teal">{money(stats.totalPaid)}</div></div>
         <div className="card"><span className="text-xs font-semibold text-muted">OUTSTANDING BALANCE</span><div className={`mt-1.5 font-display text-xl font-bold ${stats.outstanding > 0 ? "text-danger" : ""}`}>{money(stats.outstanding)}</div></div>
@@ -123,12 +123,12 @@ export default function CustomerDetail() {
             );
           })}
         </div>
-        <div className="flex flex-col gap-2.5 sm:hidden">
+        <div className="flex flex-col gap-2 sm:hidden">
           {custSales.map((s) => {
             const product = productById(s.productId);
             const payStatus = salePaymentStatus(s);
             return (
-              <div key={s.id} className="flex flex-col gap-1.5 rounded-xl2 border border-border bg-surface p-4">
+              <div key={s.id} className="flex flex-col gap-1.5 rounded-xl2 border border-border bg-surface p-3">
                 <div className="flex items-start justify-between gap-2">
                   <span className="font-semibold">{product?.name}</span>
                   <Badge tone={payStatus === "Paid" ? "teal" : payStatus === "Partial" ? "slate" : "accent"}>{payStatus}</Badge>
@@ -160,9 +160,9 @@ export default function CustomerDetail() {
           ))}
           {custPayments.length === 0 && <div className="px-5 py-6 text-center text-sm text-muted">No payments recorded yet.</div>}
         </div>
-        <div className="flex flex-col gap-2.5 sm:hidden">
+        <div className="flex flex-col gap-2 sm:hidden">
           {custPayments.map((p) => (
-            <div key={p.id} className="flex items-center justify-between rounded-xl2 border border-border bg-surface p-4">
+            <div key={p.id} className="flex items-center justify-between rounded-xl2 border border-border bg-surface p-3">
               <div>
                 <div className="text-[13px] font-semibold">{p.method}</div>
                 <div className="text-[12px] text-muted">{p.date} · <span className="font-mono">{p.saleId}</span></div>

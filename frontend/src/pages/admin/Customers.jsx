@@ -138,13 +138,13 @@ export default function Customers() {
       </div>
 
       {/* Mobile cards */}
-      <div className="flex flex-col gap-3 sm:hidden">
+      <div className="flex flex-col gap-2 sm:hidden">
         {shown.map((c) => {
           const stats = getCustomerStats(c.id);
           const status = stats.outstanding <= 0 ? "Paid Up" : stats.outstanding < stats.totalPurchases * 0.3 ? "Partial" : "Pending";
           const initials = c.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
           return (
-            <Link to={`/customers/${c.id}`} key={c.id} className="flex flex-col gap-3 rounded-xl2 border border-border bg-surface p-4">
+            <Link to={`/customers/${c.id}`} key={c.id} className="flex flex-col gap-2 rounded-xl2 border border-border bg-surface p-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-surface-2 text-[13px] font-bold text-ink-soft">

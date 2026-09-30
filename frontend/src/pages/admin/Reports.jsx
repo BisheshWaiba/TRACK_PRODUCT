@@ -53,7 +53,7 @@ export default function Reports() {
               <polyline points="0,205 160,175 320,190 480,120 640,135 800,75 960,100 1120,55" fill="none" stroke="#E2672A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:gap-5 sm:grid-cols-2">
             <div className="card !p-0 overflow-hidden">
               <div className="border-b border-border p-4 text-[14.5px] font-semibold">Top products by revenue</div>
               {topProducts.map((p) => (
@@ -141,11 +141,11 @@ export default function Reports() {
               );
             })}
           </div>
-          <div className="flex flex-col gap-2.5 sm:hidden">
+          <div className="flex flex-col gap-2 sm:hidden">
             {stockMovements.map((m) => {
               const product = productById(m.productId);
               return (
-                <div key={m.id} className="flex flex-col gap-1.5 rounded-xl2 border border-border bg-surface p-4">
+                <div key={m.id} className="flex flex-col gap-1.5 rounded-xl2 border border-border bg-surface p-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-semibold">{product?.name}</span>
                     <Badge tone={m.type === "in" ? "teal" : "accent"}>{m.type === "in" ? "In" : "Out"}</Badge>

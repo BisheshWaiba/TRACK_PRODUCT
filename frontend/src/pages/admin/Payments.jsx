@@ -69,7 +69,7 @@ export default function Payments() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:gap-5 sm:grid-cols-3">
         <div className="card"><span className="text-xs font-semibold text-muted">TOTAL RECEIVED</span><div className="mt-1.5 font-display text-2xl font-bold text-teal">{money(totalReceived)}</div></div>
         <div className="card"><span className="text-xs font-semibold text-muted">PARTIALLY PAID</span><div className="mt-1.5 font-display text-2xl font-bold text-slate">{money(partial)}</div></div>
         <div className="card border-danger/60 bg-danger-soft"><span className="text-xs font-semibold text-danger-dark">PENDING</span><div className="mt-1.5 font-display text-2xl font-bold text-danger-dark">{money(pending)}</div></div>
@@ -122,7 +122,7 @@ export default function Payments() {
       </div>
 
       {/* Mobile cards */}
-      <div className="flex flex-col gap-3 sm:hidden">
+      <div className="flex flex-col gap-2 sm:hidden">
         {rows.map((s) => {
           const customer = customerById(s.customerId);
           const total = saleTotal(s);
@@ -130,7 +130,7 @@ export default function Payments() {
           const balance = total - paid;
           const status = salePaymentStatus(s);
           return (
-            <div key={s.id} className="flex flex-col gap-2.5 rounded-xl2 border border-border bg-surface p-4">
+            <div key={s.id} className="flex flex-col gap-2 rounded-xl2 border border-border bg-surface p-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="font-semibold">{customer?.name}</div>

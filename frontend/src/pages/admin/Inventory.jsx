@@ -41,7 +41,7 @@ export default function Inventory() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
         <div className="card"><span className="text-xs font-semibold text-muted">TOTAL STOCK</span><div className="mt-1.5 font-display text-2xl font-bold">{totals.totalStock}</div></div>
         <div className="card"><span className="text-xs font-semibold text-muted">AVAILABLE</span><div className="mt-1.5 font-display text-2xl font-bold text-teal">{totals.totalAvailable}</div></div>
         <div className="card border-danger/60 bg-danger-soft"><span className="text-xs font-semibold text-danger-dark">LOW STOCK</span><div className="mt-1.5 font-display text-2xl font-bold text-danger-dark">{totals.lowStock}</div></div>
@@ -68,12 +68,12 @@ export default function Inventory() {
             );
           })}
         </div>
-        <div className="flex flex-col gap-3 sm:hidden">
+        <div className="flex flex-col gap-2 sm:hidden">
           {products.map((p) => {
             const available = p.stockTotal - p.stockTaken;
             const status = stockStatus(p);
             return (
-              <div key={p.id} className="flex flex-col gap-2.5 rounded-xl2 border border-border bg-surface p-4">
+              <div key={p.id} className="flex flex-col gap-2 rounded-xl2 border border-border bg-surface p-3">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-semibold">{p.name}</span>
                   <Badge tone={status.tone === "danger" ? "danger" : status.tone === "ink" ? "ink" : status.tone === "accent" ? "accent" : "teal"}>{status.label}</Badge>
@@ -110,11 +110,11 @@ export default function Inventory() {
             );
           })}
         </div>
-        <div className="flex flex-col gap-2.5 sm:hidden">
+        <div className="flex flex-col gap-2 sm:hidden">
           {movements.map((m) => {
             const product = productById(m.productId);
             return (
-              <div key={m.id} className="flex flex-col gap-1.5 rounded-xl2 border border-border bg-surface p-4">
+              <div key={m.id} className="flex flex-col gap-1.5 rounded-xl2 border border-border bg-surface p-3">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-semibold">{product?.name}</span>
                   <Badge tone={m.type === "in" ? "teal" : "accent"} icon={<Icon name={m.type === "in" ? "arrowDown" : "arrowUp"} className="h-[11px] w-[11px]" strokeWidth={2.2} />}>

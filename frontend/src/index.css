@@ -34,7 +34,7 @@ a {
     @apply inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-surface px-5 py-3 text-sm font-semibold text-ink transition-colors hover:bg-surface-2;
   }
   .card {
-    @apply rounded-xl2 border border-border bg-surface p-5 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-ink/5;
+    @apply rounded-xl2 border border-border bg-surface p-3.5 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-ink/5 sm:p-5;
   }
   .field {
     @apply w-full rounded-lg border border-border bg-surface px-3.5 py-3 text-sm outline-none transition-colors focus-within:border-accent;

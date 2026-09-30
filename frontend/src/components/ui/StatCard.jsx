@@ -1,15 +1,15 @@
 export default function StatCard({ label, value, sub, subTone = "muted", icon, danger = false }) {
   return (
     <div
-      className={`card flex flex-col gap-2.5 ${
+      className={`card flex flex-col gap-1.5 sm:gap-2.5 ${
         danger ? "border-danger/70 bg-danger-soft" : ""
       }`}
     >
       <div className="flex items-start justify-between">
-        <span className={`text-xs font-semibold ${danger ? "text-danger-dark" : "text-muted"}`}>{label}</span>
+        <span className={`text-[11px] font-semibold sm:text-xs ${danger ? "text-danger-dark" : "text-muted"}`}>{label}</span>
         {icon}
       </div>
-      <div className={`font-display text-[21px] font-bold sm:text-[26px] ${danger ? "text-danger-dark" : "text-ink"}`}>{value}</div>
+      <div className={`font-display text-[19px] font-bold sm:text-[26px] ${danger ? "text-danger-dark" : "text-ink"}`}>{value}</div>
       {sub && (
         <span
           className={`text-xs font-semibold ${

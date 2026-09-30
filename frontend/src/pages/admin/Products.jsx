@@ -160,12 +160,12 @@ export default function Products() {
       </div>
 
       {/* Mobile cards */}
-      <div className="flex flex-col gap-3 sm:hidden">
+      <div className="flex flex-col gap-2 sm:hidden">
         {shown.map((p) => {
           const available = p.stockTotal - p.stockTaken;
           const status = stockStatus(p);
           return (
-            <div key={p.id} className="flex flex-col gap-3 rounded-xl2 border border-border bg-surface p-4">
+            <div key={p.id} className="flex flex-col gap-2 rounded-xl2 border border-border bg-surface p-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-2 text-muted">
