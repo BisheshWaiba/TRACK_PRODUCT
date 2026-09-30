@@ -65,6 +65,36 @@ export function DataProvider({ children }) {
     refresh();
   }, [refresh]);
 
+  // Keeps every open session in sync: another tab/device inserting,
+  // editing, or deleting a row shows up here live, not just as a
+  // notification you'd otherwise have to reload the page to see.
+  useEffect(() => {
+    function applyChange(setState, mapFn, payload) {
+      if (payload.eventType === "INSERT") {
+        const mapped = mapFn(payload.new);
+        setState((prev) => (prev.some((r) => r.id === mapped.id) ? prev : [...prev, mapped]));
+      } else if (payload.eventType === "UPDATE") {
+        const mapped = mapFn(payload.new);
+        setState((prev) => prev.map((r) => (r.id === mapped.id ? mapped : r)));
+      } else if (payload.eventType === "DELETE") {
+        setState((prev) => prev.filter((r) => r.id !== payload.old.id));
+      }
+    }
+
+    const channel = supabase
+      .channel("data-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, (p) => applyChange(setProducts, mapProduct, p))
+      .on("postgres_changes", { event: "*", schema: "public", table: "customers" }, (p) => applyChange(setCustomers, mapCustomer, p))
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, (p) => applyChange(setSales, mapSale, p))
+      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, (p) => applyChange(setPayments, mapPayment, p))
+      .on("postgres_changes", { event: "*", schema: "public", table: "stock_movements" }, (p) => applyChange(setStockMovements, mapMovement, p))
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   function productById(id) {
     return products.find((p) => p.id === id);
   }
