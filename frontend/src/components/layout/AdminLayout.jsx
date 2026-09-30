@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import Icon from "../icons/Icon";
 import NotificationBell from "./NotificationBell";
@@ -29,6 +30,7 @@ export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const [navOpen, setNavOpen] = useState(false);
   const title =
     TITLES[location.pathname] ||
     (location.pathname.startsWith("/customers/") ? "Customer Detail" : "BulkTrack Admin");
@@ -43,12 +45,25 @@ export default function AdminLayout() {
 
   return (
     <div className="flex min-h-screen bg-bg">
-      <div className="sticky top-0 flex h-screen w-[250px] flex-shrink-0 flex-col justify-between overflow-y-auto bg-sidebar p-4 text-sidebar-text">
+      {navOpen && (
+        <div className="fixed inset-0 z-40 bg-ink/50 lg:hidden" onClick={() => setNavOpen(false)} />
+      )}
+
+      <div
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[250px] flex-shrink-0 flex-col justify-between overflow-y-auto bg-sidebar p-4 text-sidebar-text transition-transform duration-200 lg:sticky lg:top-0 lg:translate-x-0 ${
+          navOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
         <div className="flex flex-col gap-6">
-          <Link to="/" className="flex items-center gap-2 px-2">
-            <Icon name="bundle" className="h-6 w-6 text-accent" strokeWidth={1.6} />
-            <span className="font-display text-[19px] font-bold text-white">BulkTrack</span>
-          </Link>
+          <div className="flex items-center justify-between px-2">
+            <Link to="/" onClick={() => setNavOpen(false)} className="flex items-center gap-2">
+              <Icon name="bundle" className="h-6 w-6 text-accent" strokeWidth={1.6} />
+              <span className="font-display text-[19px] font-bold text-white">BulkTrack</span>
+            </Link>
+            <button onClick={() => setNavOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-md text-sidebar-muted hover:bg-sidebar-hover lg:hidden">
+              <Icon name="close" className="h-4 w-4" strokeWidth={1.8} />
+            </button>
+          </div>
           <div className="px-3 text-[10.5px] font-bold tracking-widest text-sidebar-muted">
             WHOLESALER ADMIN
           </div>
@@ -58,6 +73,7 @@ export default function AdminLayout() {
                 key={item.to}
                 to={item.to}
                 end={item.end}
+                onClick={() => setNavOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
                     isActive ? "bg-accent font-semibold text-white" : "text-sidebar-text hover:bg-sidebar-hover"
@@ -75,7 +91,7 @@ export default function AdminLayout() {
             onAccount ? "bg-sidebar-hover" : ""
           }`}
         >
-          <Link to="/account" className="flex min-w-0 flex-1 items-center gap-2.5">
+          <Link to="/account" onClick={() => setNavOpen(false)} className="flex min-w-0 flex-1 items-center gap-2.5">
             <div className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full bg-sidebar-hover">
               <Icon name="user" className="h-[17px] w-[17px] text-sidebar-text" strokeWidth={1.7} />
             </div>
@@ -94,17 +110,22 @@ export default function AdminLayout() {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col">
-        <div className="flex h-[72px] flex-shrink-0 items-center justify-between border-b border-border bg-surface px-8">
-          <span className="font-display text-[19px] font-bold">{title}</span>
-          <div className="flex items-center gap-4">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex h-[64px] flex-shrink-0 items-center justify-between border-b border-border bg-surface px-4 sm:h-[72px] sm:px-8">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <button onClick={() => setNavOpen(true)} aria-label="Open menu" className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md hover:bg-surface-2 lg:hidden">
+              <Icon name="menu" className="h-5 w-5" strokeWidth={1.8} />
+            </button>
+            <span className="truncate font-display text-[17px] font-bold sm:text-[19px]">{title}</span>
+          </div>
+          <div className="flex flex-shrink-0 items-center gap-2 sm:gap-4">
             <NotificationBell />
             <Link to="/account" title="Account" className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-surface-2 hover:bg-border">
               <Icon name="user" className="h-[17px] w-[17px] text-ink-soft" strokeWidth={1.7} />
             </Link>
           </div>
         </div>
-        <div className="flex-1 p-8">
+        <div className="min-w-0 flex-1 p-4 sm:p-8">
           <Outlet />
         </div>
       </div>

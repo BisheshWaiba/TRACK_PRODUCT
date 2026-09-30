@@ -62,7 +62,7 @@ export default function AdminLogin() {
         </div>
       </div>
 
-      <div className="flex flex-1 items-center justify-center p-10">
+      <div className="flex flex-1 items-center justify-center p-6 sm:p-10">
         <form onSubmit={submit} className="flex w-full max-w-[400px] flex-col gap-7">
           <div className="flex flex-col gap-2">
             <h1 className="font-display text-[28px] font-bold">Admin sign in</h1>

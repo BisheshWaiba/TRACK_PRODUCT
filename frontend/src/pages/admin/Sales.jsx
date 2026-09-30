@@ -43,7 +43,7 @@ export default function Sales() {
         </button>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {TABS.map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-2 text-[13.5px] font-semibold transition-colors ${tab === t ? "bg-ink text-white" : "bg-surface-2 hover:bg-border"}`}>
             {t}
@@ -51,7 +51,8 @@ export default function Sales() {
         ))}
       </div>
 
-      <div className="overflow-x-auto rounded-xl2 border border-border bg-surface">
+      {/* Desktop table */}
+      <div className="hidden overflow-x-auto rounded-xl2 border border-border bg-surface sm:block">
         <div className="grid min-w-[900px] grid-cols-[0.9fr_1.3fr_1.6fr_0.6fr_1fr_1fr_1fr] gap-2 bg-surface-2 px-5 py-3.5 text-[11px] font-bold tracking-wide text-muted">
           <span>DATE</span><span>CUSTOMER</span><span>PRODUCT</span><span>QTY</span><span>TOTAL</span><span>PAYMENT</span><span>REF #</span>
         </div>
@@ -71,6 +72,31 @@ export default function Sales() {
             </div>
           );
         })}
+      </div>
+
+      {/* Mobile cards */}
+      <div className="flex flex-col gap-3 sm:hidden">
+        {shown.map((s) => {
+          const customer = customerById(s.customerId);
+          const product = productById(s.productId);
+          const status = salePaymentStatus(s);
+          return (
+            <div key={s.id} className="flex flex-col gap-2 rounded-xl2 border border-border bg-surface p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="font-semibold">{customer?.name}</div>
+                  <div className="text-[12.5px] text-muted">{product?.name} × {s.qty}</div>
+                </div>
+                <Badge tone={status === "Paid" ? "teal" : status === "Partial" ? "slate" : "accent"}>{status}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-[12.5px]">
+                <span className="text-muted">{s.date} · <span className="font-mono">{s.id}</span></span>
+                <span className="font-semibold text-ink">{money(saleTotal(s))}</span>
+              </div>
+            </div>
+          );
+        })}
+        {shown.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-8 text-center text-sm text-muted">No sales match.</div>}
       </div>
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Record New Sale" width="max-w-[500px]">

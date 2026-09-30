@@ -104,7 +104,7 @@ export default function CustomerDetail() {
 
       <div className="flex flex-col gap-4">
         <span className="text-[15px] font-semibold">Purchase history</span>
-        <div className="overflow-x-auto rounded-xl2 border border-border bg-surface">
+        <div className="hidden overflow-x-auto rounded-xl2 border border-border bg-surface sm:block">
           <div className="grid min-w-[700px] grid-cols-[1fr_1.6fr_0.6fr_1fr_1fr_1fr] gap-2 bg-surface-2 px-5 py-3.5 text-[11.5px] font-bold tracking-wide text-muted">
             <span>DATE</span><span>PRODUCT</span><span>QTY</span><span>UNIT PRICE</span><span>TOTAL</span><span>PAYMENT</span>
           </div>
@@ -123,11 +123,30 @@ export default function CustomerDetail() {
             );
           })}
         </div>
+        <div className="flex flex-col gap-2.5 sm:hidden">
+          {custSales.map((s) => {
+            const product = productById(s.productId);
+            const payStatus = salePaymentStatus(s);
+            return (
+              <div key={s.id} className="flex flex-col gap-1.5 rounded-xl2 border border-border bg-surface p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-semibold">{product?.name}</span>
+                  <Badge tone={payStatus === "Paid" ? "teal" : payStatus === "Partial" ? "slate" : "accent"}>{payStatus}</Badge>
+                </div>
+                <div className="flex items-center justify-between text-[12.5px] text-muted">
+                  <span>{s.date} · {s.qty} × {money(product.price)}</span>
+                  <span className="font-semibold text-ink">{money(saleTotal(s))}</span>
+                </div>
+              </div>
+            );
+          })}
+          {custSales.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-6 text-center text-sm text-muted">No purchases yet.</div>}
+        </div>
       </div>
 
       <div className="flex flex-col gap-4">
         <span className="text-[15px] font-semibold">Payment history</span>
-        <div className="overflow-x-auto rounded-xl2 border border-border bg-surface">
+        <div className="hidden overflow-x-auto rounded-xl2 border border-border bg-surface sm:block">
           <div className="grid min-w-[600px] grid-cols-[1fr_1.4fr_1fr_1fr] gap-2 bg-surface-2 px-5 py-3.5 text-[11.5px] font-bold tracking-wide text-muted">
             <span>DATE</span><span>METHOD</span><span>AMOUNT</span><span>SALE REF</span>
           </div>
@@ -141,6 +160,18 @@ export default function CustomerDetail() {
           ))}
           {custPayments.length === 0 && <div className="px-5 py-6 text-center text-sm text-muted">No payments recorded yet.</div>}
         </div>
+        <div className="flex flex-col gap-2.5 sm:hidden">
+          {custPayments.map((p) => (
+            <div key={p.id} className="flex items-center justify-between rounded-xl2 border border-border bg-surface p-4">
+              <div>
+                <div className="text-[13px] font-semibold">{p.method}</div>
+                <div className="text-[12px] text-muted">{p.date} · <span className="font-mono">{p.saleId}</span></div>
+              </div>
+              <span className="font-semibold">{money(p.amount)}</span>
+            </div>
+          ))}
+          {custPayments.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-6 text-center text-sm text-muted">No payments recorded yet.</div>}
+        </div>
       </div>
 
       <Modal open={!!editForm} onClose={() => setEditForm(null)} title="Edit Customer" width="max-w-[460px]">
@@ -150,7 +181,7 @@ export default function CustomerDetail() {
           const editTotal = editProduct ? editProduct.price * editForm.qty : 0;
           return (
             <form onSubmit={handleEditSave} className="flex flex-col gap-4">
-              <div className="flex gap-3.5">
+              <div className="flex flex-col gap-3.5 sm:flex-row">
                 <Field label="Business Name" className="flex-1" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
                 <Field label="Contact Person" className="flex-1" value={editForm.contact} onChange={(e) => setEditForm({ ...editForm, contact: e.target.value })} required />
               </div>

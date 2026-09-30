@@ -94,7 +94,8 @@ export default function Customers() {
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-xl2 border border-border bg-surface">
+      {/* Desktop table */}
+      <div className="hidden overflow-x-auto rounded-xl2 border border-border bg-surface sm:block">
         <div className="grid min-w-[980px] grid-cols-[1.7fr_1.1fr_1fr_1fr_1fr_0.9fr_0.8fr] gap-2 bg-surface-2 px-5 py-3.5 text-[11px] font-bold tracking-wide text-muted">
           <span>BUSINESS / CONTACT</span><span>PHONE</span><span>UNITS TAKEN</span><span>TOTAL PURCHASES</span><span>OUTSTANDING</span><span>STATUS</span><span>ACTIONS</span>
         </div>
@@ -136,9 +137,49 @@ export default function Customers() {
         {shown.length === 0 && <div className="px-5 py-8 text-center text-sm text-muted">No customers found.</div>}
       </div>
 
+      {/* Mobile cards */}
+      <div className="flex flex-col gap-3 sm:hidden">
+        {shown.map((c) => {
+          const stats = getCustomerStats(c.id);
+          const status = stats.outstanding <= 0 ? "Paid Up" : stats.outstanding < stats.totalPurchases * 0.3 ? "Partial" : "Pending";
+          const initials = c.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+          return (
+            <Link to={`/customers/${c.id}`} key={c.id} className="flex flex-col gap-3 rounded-xl2 border border-border bg-surface p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-surface-2 text-[13px] font-bold text-ink-soft">
+                    {initials}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate font-semibold">{c.name}</div>
+                    <div className="truncate text-[11.5px] text-muted">{c.contact} · {c.phone}</div>
+                  </div>
+                </div>
+                <div className="flex flex-shrink-0 gap-1">
+                  <button onClick={(e) => openEdit(e, c)} title="Edit customer" className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2">
+                    <Icon name="edit" className="h-[14px] w-[14px] text-ink-soft" strokeWidth={1.7} />
+                  </button>
+                  <button onClick={(e) => openDelete(e, c)} title="Delete customer" className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2">
+                    <Icon name="trash" className="h-[14px] w-[14px] text-danger" strokeWidth={1.7} />
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-[13px]">
+                <span className="text-muted">{stats.unitsTaken} units · {money(stats.totalPurchases)}</span>
+                <div className="flex items-center gap-2">
+                  <span className={stats.outstanding > 0 ? "font-semibold text-danger" : "font-semibold text-teal"}>{money(stats.outstanding)}</span>
+                  <Badge tone={status === "Paid Up" ? "teal" : status === "Partial" ? "slate" : "accent"}>{status}</Badge>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+        {shown.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-8 text-center text-sm text-muted">No customers found.</div>}
+      </div>
+
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Customer" width="max-w-[460px]">
         <form onSubmit={handleSave} className="flex flex-col gap-4">
-          <div className="flex gap-3.5">
+          <div className="flex flex-col gap-3.5 sm:flex-row">
             <Field label="Business Name" placeholder="Annapurna Store" className="flex-1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             <Field label="Contact Person" placeholder="Krishna Bhattarai" className="flex-1" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} required />
           </div>
@@ -182,7 +223,7 @@ export default function Customers() {
       <Modal open={!!editForm} onClose={() => setEditForm(null)} title="Edit Customer" width="max-w-[460px]">
         {editForm && (
           <form onSubmit={handleEditSave} className="flex flex-col gap-4">
-            <div className="flex gap-3.5">
+            <div className="flex flex-col gap-3.5 sm:flex-row">
               <Field label="Business Name" className="flex-1" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
               <Field label="Contact Person" className="flex-1" value={editForm.contact} onChange={(e) => setEditForm({ ...editForm, contact: e.target.value })} required />
             </div>

@@ -118,7 +118,8 @@ export default function Products() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl2 border border-border bg-surface">
+      {/* Desktop table */}
+      <div className="hidden overflow-x-auto rounded-xl2 border border-border bg-surface sm:block">
         <div className="grid min-w-[900px] grid-cols-[1.8fr_1fr_0.9fr_0.9fr_1.1fr_1fr_0.8fr] gap-2 bg-surface-2 px-5 py-3.5 text-[11px] font-bold tracking-wide text-muted">
           <span>PRODUCT</span><span>CATEGORY</span><span>PRICE</span><span>BUNDLE SIZE</span><span>AVAILABLE / TOTAL</span><span>STATUS</span><span>ACTIONS</span>
         </div>
@@ -158,15 +159,58 @@ export default function Products() {
         {shown.length === 0 && <div className="px-5 py-8 text-center text-sm text-muted">No products match.</div>}
       </div>
 
+      {/* Mobile cards */}
+      <div className="flex flex-col gap-3 sm:hidden">
+        {shown.map((p) => {
+          const available = p.stockTotal - p.stockTaken;
+          const status = stockStatus(p);
+          return (
+            <div key={p.id} className="flex flex-col gap-3 rounded-xl2 border border-border bg-surface p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-2 text-muted">
+                    {p.imageUrl ? (
+                      <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <Icon name="box" className="h-[18px] w-[18px]" strokeWidth={1.4} />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate font-semibold">{p.name}</div>
+                    <div className="text-[12.5px] text-muted">{p.category} · {p.bundleSize}</div>
+                  </div>
+                </div>
+                <div className="flex flex-shrink-0 gap-1">
+                  <button onClick={() => openEdit(p)} className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2">
+                    <Icon name="edit" className="h-[14px] w-[14px] text-ink-soft" strokeWidth={1.7} />
+                  </button>
+                  <button onClick={() => handleDelete(p.id)} className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2">
+                    <Icon name="trash" className="h-[14px] w-[14px] text-danger" strokeWidth={1.7} />
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-[13px]">
+                <span className="font-semibold">{money(p.price)}</span>
+                <span className={available <= p.reorderAt ? "font-semibold text-danger" : "text-ink-soft"}>{available} / {p.stockTotal} available</span>
+                <Badge tone={status.tone === "danger" ? "danger" : status.tone === "ink" ? "ink" : status.tone === "accent" ? "accent" : "teal"}>
+                  {status.label}
+                </Badge>
+              </div>
+            </div>
+          );
+        })}
+        {shown.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-8 text-center text-sm text-muted">No products match.</div>}
+      </div>
+
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Product">
         <form onSubmit={handleSave} className="flex flex-col gap-4">
           <PhotoPicker preview={imagePreview} onChange={pickNewImage} />
           <Field label="Product Name" placeholder="e.g. Winter Essentials Bundle G" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          <div className="flex gap-3.5">
+          <div className="flex flex-col gap-3.5 sm:flex-row">
             <Field label="Category" placeholder="Seasonal" className="flex-1" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
             <Field label="Unit Price (NPR)" placeholder="15200" className="flex-1" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
           </div>
-          <div className="flex gap-3.5">
+          <div className="flex flex-col gap-3.5 sm:flex-row">
             <Field label="Bundle Size" placeholder="3 items / bundle" className="flex-1" value={form.bundleSize} onChange={(e) => setForm({ ...form, bundleSize: e.target.value })} />
             <Field label="Opening Quantity" placeholder="60" className="flex-1" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
           </div>
@@ -186,11 +230,11 @@ export default function Products() {
           <form onSubmit={handleEditSave} className="flex flex-col gap-4">
             <PhotoPicker preview={editImagePreview} onChange={pickEditImage} />
             <Field label="Product Name" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
-            <div className="flex gap-3.5">
+            <div className="flex flex-col gap-3.5 sm:flex-row">
               <Field label="Category" className="flex-1" value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} />
               <Field label="Unit Price (NPR)" className="flex-1" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} />
             </div>
-            <div className="flex gap-3.5">
+            <div className="flex flex-col gap-3.5 sm:flex-row">
               <Field label="Bundle Size" className="flex-1" value={editForm.bundleSize} onChange={(e) => setEditForm({ ...editForm, bundleSize: e.target.value })} />
               <Field label="Total Stock" className="flex-1" value={editForm.stockTotal} onChange={(e) => setEditForm({ ...editForm, stockTotal: e.target.value })} />
             </div>

@@ -34,7 +34,7 @@ export default function Reports() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`-mb-px border-b-[2.5px] px-4.5 py-3 text-[13.5px] font-semibold transition-colors ${
+            className={`-mb-px whitespace-nowrap border-b-[2.5px] px-4 py-3 text-[13.5px] font-semibold transition-colors ${
               tab === t ? "border-accent text-ink" : "border-transparent text-muted hover:text-ink-soft"
             }`}
           >
@@ -47,7 +47,7 @@ export default function Reports() {
         <div className="flex flex-col gap-5">
           <div className="card flex flex-col gap-4">
             <span className="text-[14.5px] font-semibold">Sales trend — last 30 days</span>
-            <svg viewBox="0 0 1120 220" className="h-[220px] w-full" preserveAspectRatio="none">
+            <svg viewBox="0 0 1120 220" className="h-[160px] w-full sm:h-[220px]" preserveAspectRatio="none">
               {[0, 55, 110, 165, 219].map((y) => <line key={y} x1="0" y1={y} x2="1120" y2={y} stroke="#E4DCC9" strokeWidth="1" />)}
               <polygon points="0,205 160,175 320,190 480,120 640,135 800,75 960,100 1120,55 1120,219 0,219" fill="rgba(226,103,42,0.08)" />
               <polyline points="0,205 160,175 320,190 480,120 640,135 800,75 960,100 1120,55" fill="none" stroke="#E2672A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -124,7 +124,7 @@ export default function Reports() {
             <Icon name="search" className="h-4 w-4 text-muted" strokeWidth={2} />
             <input placeholder="Search movements…" className="flex-1 border-none bg-transparent text-sm outline-none" />
           </div>
-          <div className="overflow-x-auto rounded-xl2 border border-border bg-surface">
+          <div className="hidden overflow-x-auto rounded-xl2 border border-border bg-surface sm:block">
             <div className="grid min-w-[700px] grid-cols-[1fr_1.8fr_0.9fr_0.7fr_1.4fr] gap-2 bg-surface-2 px-5 py-3.5 text-[11.5px] font-bold tracking-wide text-muted">
               <span>DATE</span><span>PRODUCT</span><span>TYPE</span><span>QTY</span><span>REFERENCE</span>
             </div>
@@ -137,6 +137,23 @@ export default function Reports() {
                   <Badge tone={m.type === "in" ? "teal" : "accent"}>{m.type === "in" ? "In" : "Out"}</Badge>
                   <span>{m.type === "in" ? "+" : "-"}{m.qty}</span>
                   <span className="text-muted">{m.reference}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex flex-col gap-2.5 sm:hidden">
+            {stockMovements.map((m) => {
+              const product = productById(m.productId);
+              return (
+                <div key={m.id} className="flex flex-col gap-1.5 rounded-xl2 border border-border bg-surface p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold">{product?.name}</span>
+                    <Badge tone={m.type === "in" ? "teal" : "accent"}>{m.type === "in" ? "In" : "Out"}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-[12.5px] text-muted">
+                    <span>{m.date} · {m.reference}</span>
+                    <span className="font-semibold text-ink">{m.type === "in" ? "+" : "-"}{m.qty}</span>
+                  </div>
                 </div>
               );
             })}

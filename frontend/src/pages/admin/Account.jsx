@@ -93,11 +93,11 @@ export default function Account() {
               <div className="mt-0.5 text-[13px] text-muted">Wholesaler Admin · BulkTrack HQ</div>
             </div>
           </div>
-          <div className="flex gap-3.5">
+          <div className="flex flex-col gap-3.5 sm:flex-row">
             <Field label="Full Name" value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} className="flex-1" />
             <Field label="Role" defaultValue="Wholesaler Admin" disabled className="flex-1" />
           </div>
-          <div className="flex gap-3.5">
+          <div className="flex flex-col gap-3.5 sm:flex-row">
             <Field label="Email" value={profile.email} onChange={(e) => setProfile({ ...profile, email: e.target.value })} className="flex-1" />
             <Field label="Phone" value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} className="flex-1" />
           </div>
@@ -111,7 +111,7 @@ export default function Account() {
 
         <div className="card flex flex-col gap-4">
           <span className="text-[15px] font-semibold">Change Password</span>
-          <div className="flex gap-3.5">
+          <div className="flex flex-col gap-3.5 sm:flex-row">
             <Field label="Current Password" type="password" className="flex-1" value={pwForm.current} onChange={(e) => setPwForm({ ...pwForm, current: e.target.value })} />
             <Field label="New Password" type="password" className="flex-1" value={pwForm.next} onChange={(e) => setPwForm({ ...pwForm, next: e.target.value })} />
           </div>

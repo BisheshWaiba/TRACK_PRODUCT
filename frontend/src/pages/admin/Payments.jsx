@@ -75,7 +75,7 @@ export default function Payments() {
         <div className="card border-danger/60 bg-danger-soft"><span className="text-xs font-semibold text-danger-dark">PENDING</span><div className="mt-1.5 font-display text-2xl font-bold text-danger-dark">{money(pending)}</div></div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {TABS.map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-2 text-[13.5px] font-semibold transition-colors ${tab === t ? "bg-ink text-white" : "bg-surface-2 hover:bg-border"}`}>
             {t}
@@ -83,7 +83,8 @@ export default function Payments() {
         ))}
       </div>
 
-      <div className="overflow-x-auto rounded-xl2 border border-border bg-surface">
+      {/* Desktop table */}
+      <div className="hidden overflow-x-auto rounded-xl2 border border-border bg-surface sm:block">
         <div className="grid min-w-[960px] grid-cols-[0.8fr_1.2fr_0.8fr_1fr_1fr_1fr_1fr_1.1fr] gap-2 bg-surface-2 px-5 py-3.5 text-[10.5px] font-bold tracking-wide text-muted">
           <span>DATE</span><span>CUSTOMER</span><span>SALE REF</span><span>TOTAL</span><span>PAID</span><span>BALANCE</span><span>STATUS</span><span>ACTION</span>
         </div>
@@ -120,11 +121,52 @@ export default function Payments() {
         })}
       </div>
 
+      {/* Mobile cards */}
+      <div className="flex flex-col gap-3 sm:hidden">
+        {rows.map((s) => {
+          const customer = customerById(s.customerId);
+          const total = saleTotal(s);
+          const paid = salePaidAmount(s.id);
+          const balance = total - paid;
+          const status = salePaymentStatus(s);
+          return (
+            <div key={s.id} className="flex flex-col gap-2.5 rounded-xl2 border border-border bg-surface p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="font-semibold">{customer?.name}</div>
+                  <div className="text-[12px] text-muted">{s.date} · <span className="font-mono">{s.id}</span></div>
+                </div>
+                <Badge tone={status === "Paid" ? "teal" : status === "Partial" ? "slate" : "accent"}>{status}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-[13px]">
+                <span className="text-muted">{money(total)} total · <span className="font-semibold text-ink">{money(paid)} paid</span></span>
+                {balance > 0 && <span className="font-semibold text-danger">{money(balance)} due</span>}
+              </div>
+              <div className="flex items-center gap-3 border-t border-border pt-2.5">
+                {paid > 0 && (
+                  <button onClick={() => openEditPayment(s.id)} className="flex items-center gap-1.5 text-[12.5px] font-semibold text-ink-soft">
+                    <Icon name="edit" className="h-[12px] w-[12px]" strokeWidth={1.7} />
+                    Edit Payment
+                  </button>
+                )}
+                {balance > 0 && (
+                  <button onClick={() => openRecord(s.id)} className="text-[12.5px] font-semibold text-accent">
+                    {paid > 0 ? "Add More" : "Add Payment"}
+                  </button>
+                )}
+                {paid === 0 && balance === 0 && <span className="text-[12.5px] text-muted">Nothing due</span>}
+              </div>
+            </div>
+          );
+        })}
+        {rows.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-8 text-center text-sm text-muted">No matching sales.</div>}
+      </div>
+
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Record Payment">
         {activeSale && (
           <form onSubmit={handleSave} className="flex flex-col gap-4">
             <Field label="Customer / Sale Reference" disabled value={`${customerById(activeSale.customerId)?.name} — ${activeSale.id}`} />
-            <div className="flex gap-3.5 rounded-xl bg-surface-2 p-4">
+            <div className="flex flex-col gap-3.5 rounded-xl bg-surface-2 p-4 sm:flex-row">
               <div className="flex-1">
                 <div className="text-[11px] font-semibold text-muted">TOTAL AMOUNT</div>
                 <div className="mt-0.5 text-[15px] font-bold">{money(saleTotal(activeSale))}</div>
@@ -138,7 +180,7 @@ export default function Payments() {
                 <div className="mt-0.5 text-[15px] font-bold text-accent-text">{money(saleTotal(activeSale) - salePaidAmount(activeSale.id))}</div>
               </div>
             </div>
-            <div className="flex gap-3.5">
+            <div className="flex flex-col gap-3.5 sm:flex-row">
               <Field label="Amount Received" className="flex-1" value={amount} onChange={(e) => setAmount(e.target.value)} required />
               <label className="flex flex-1 flex-col gap-2">
                 <span className="text-[13px] font-semibold">Method</span>
@@ -161,7 +203,7 @@ export default function Payments() {
         {editPayment && editSale && (
           <form onSubmit={handleEditPaymentSave} className="flex flex-col gap-4">
             <Field label="Customer / Sale Reference" disabled value={`${customerById(editSale.customerId)?.name} — ${editSale.id}`} />
-            <div className="flex gap-3.5 rounded-xl bg-surface-2 p-4">
+            <div className="flex flex-col gap-3.5 rounded-xl bg-surface-2 p-4 sm:flex-row">
               <div className="flex-1">
                 <div className="text-[11px] font-semibold text-muted">TOTAL AMOUNT</div>
                 <div className="mt-0.5 text-[15px] font-bold">{money(saleTotal(editSale))}</div>
@@ -171,7 +213,7 @@ export default function Payments() {
                 <div className={`mt-0.5 text-[15px] font-bold ${editNewBalance > 0 ? "text-accent-text" : "text-teal"}`}>{money(Math.max(editNewBalance, 0))}</div>
               </div>
             </div>
-            <div className="flex gap-3.5">
+            <div className="flex flex-col gap-3.5 sm:flex-row">
               <Field label="Amount Paid" className="flex-1" value={editPayment.amount} onChange={(e) => setEditPayment({ ...editPayment, amount: e.target.value })} required />
               <label className="flex flex-1 flex-col gap-2">
                 <span className="text-[13px] font-semibold">Method</span>

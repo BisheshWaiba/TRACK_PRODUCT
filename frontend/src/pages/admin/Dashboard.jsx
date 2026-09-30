@@ -39,7 +39,7 @@ export default function AdminDashboard() {
             <span className="text-[14.5px] font-semibold">Sales — last 30 days</span>
             <span className="text-xs text-muted">Peak: {money(24600)} · Sep 24</span>
           </div>
-          <svg viewBox="0 0 560 200" className="h-[200px] w-full" preserveAspectRatio="none">
+          <svg viewBox="0 0 560 200" className="h-[150px] w-full sm:h-[200px]" preserveAspectRatio="none">
             {[0, 50, 100, 150, 199].map((y) => (
               <line key={y} x1="0" y1={y} x2="560" y2={y} stroke="#E4DCC9" strokeWidth="1" />
             ))}

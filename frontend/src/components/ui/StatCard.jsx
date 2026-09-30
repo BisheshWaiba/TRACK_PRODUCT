@@ -9,7 +9,7 @@ export default function StatCard({ label, value, sub, subTone = "muted", icon, d
         <span className={`text-xs font-semibold ${danger ? "text-danger-dark" : "text-muted"}`}>{label}</span>
         {icon}
       </div>
-      <div className={`font-display text-[26px] font-bold ${danger ? "text-danger-dark" : "text-ink"}`}>{value}</div>
+      <div className={`font-display text-[21px] font-bold sm:text-[26px] ${danger ? "text-danger-dark" : "text-ink"}`}>{value}</div>
       {sub && (
         <span
           className={`text-xs font-semibold ${

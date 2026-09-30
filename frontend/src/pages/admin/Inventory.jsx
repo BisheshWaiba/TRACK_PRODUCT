@@ -50,7 +50,7 @@ export default function Inventory() {
 
       <div className="flex flex-col gap-4">
         <span className="text-[15px] font-semibold">Current stock levels</span>
-        <div className="overflow-x-auto rounded-xl2 border border-border bg-surface">
+        <div className="hidden overflow-x-auto rounded-xl2 border border-border bg-surface sm:block">
           <div className="grid min-w-[700px] grid-cols-[2fr_1fr_1fr_1.4fr_1fr] gap-2 bg-surface-2 px-5 py-3.5 text-[11.5px] font-bold tracking-wide text-muted">
             <span>PRODUCT</span><span>AVAILABLE</span><span>REORDER AT</span><span>LEVEL</span><span>STATUS</span>
           </div>
@@ -68,11 +68,30 @@ export default function Inventory() {
             );
           })}
         </div>
+        <div className="flex flex-col gap-3 sm:hidden">
+          {products.map((p) => {
+            const available = p.stockTotal - p.stockTaken;
+            const status = stockStatus(p);
+            return (
+              <div key={p.id} className="flex flex-col gap-2.5 rounded-xl2 border border-border bg-surface p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold">{p.name}</span>
+                  <Badge tone={status.tone === "danger" ? "danger" : status.tone === "ink" ? "ink" : status.tone === "accent" ? "accent" : "teal"}>{status.label}</Badge>
+                </div>
+                <ProgressBar percent={(available / p.stockTotal) * 100} tone={status.tone === "danger" ? "danger" : status.tone === "ink" ? "ink" : "teal"} />
+                <div className="flex items-center justify-between text-[12.5px] text-muted">
+                  <span className={available <= p.reorderAt ? "font-semibold text-danger" : "font-semibold text-teal"}>{available} available</span>
+                  <span>Reorder at {p.reorderAt}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="flex flex-col gap-4">
         <span className="text-[15px] font-semibold">Recent stock movements</span>
-        <div className="overflow-x-auto rounded-xl2 border border-border bg-surface">
+        <div className="hidden overflow-x-auto rounded-xl2 border border-border bg-surface sm:block">
           <div className="grid min-w-[700px] grid-cols-[1fr_1.8fr_0.9fr_0.7fr_1.4fr] gap-2 bg-surface-2 px-5 py-3.5 text-[11.5px] font-bold tracking-wide text-muted">
             <span>DATE</span><span>PRODUCT</span><span>TYPE</span><span>QTY</span><span>REFERENCE</span>
           </div>
@@ -87,6 +106,25 @@ export default function Inventory() {
                 </Badge>
                 <span>{m.type === "in" ? "+" : "-"}{m.qty}</span>
                 <span className="text-muted">{m.reference}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex flex-col gap-2.5 sm:hidden">
+          {movements.map((m) => {
+            const product = productById(m.productId);
+            return (
+              <div key={m.id} className="flex flex-col gap-1.5 rounded-xl2 border border-border bg-surface p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold">{product?.name}</span>
+                  <Badge tone={m.type === "in" ? "teal" : "accent"} icon={<Icon name={m.type === "in" ? "arrowDown" : "arrowUp"} className="h-[11px] w-[11px]" strokeWidth={2.2} />}>
+                    {m.type === "in" ? "In" : "Out"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between text-[12.5px] text-muted">
+                  <span>{m.date} · {m.reference}</span>
+                  <span className="font-semibold text-ink">{m.type === "in" ? "+" : "-"}{m.qty}</span>
+                </div>
               </div>
             );
           })}
@@ -113,7 +151,7 @@ export default function Inventory() {
               Stock Out
             </button>
           </div>
-          <div className="flex gap-3.5">
+          <div className="flex flex-col gap-3.5 sm:flex-row">
             <Field label="Quantity" placeholder="100" className="flex-1" value={form.qty} onChange={(e) => setForm({ ...form, qty: e.target.value })} required />
             <Field label="Date" defaultValue={today} type="date" className="flex-1" />
           </div>

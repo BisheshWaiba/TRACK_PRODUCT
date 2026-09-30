@@ -8,7 +8,7 @@ export default function Modal({ open, onClose, title, children, width = "max-w-[
       onClick={onClose}
     >
       <div
-        className={`w-full ${width} rounded-xl2 bg-surface p-7 shadow-2xl`}
+        className={`flex max-h-[85vh] w-full ${width} flex-col overflow-y-auto rounded-xl2 bg-surface p-5 shadow-2xl sm:p-7`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
