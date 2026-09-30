@@ -37,7 +37,7 @@ export default function CustomerDetail() {
   const initials = customer.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
   function openEdit() {
-    setEditForm({ name: customer.name, contact: customer.contact, phone: customer.phone, address: customer.address, productId: "", qty: 1, paymentStatus: "Paid" });
+    setEditForm({ name: customer.name, contact: customer.contact, phone: customer.phone, address: customer.address, productId: "", qty: 1, paymentStatus: "Paid", partialAmount: "" });
   }
 
   async function handleEditSave(e) {
@@ -45,7 +45,7 @@ export default function CustomerDetail() {
     setSaving(true);
     await updateCustomer(customer.id, editForm);
     if (editForm.productId && Number(editForm.qty) > 0) {
-      await createSale({ customerId: customer.id, productId: editForm.productId, qty: editForm.qty, paymentStatus: editForm.paymentStatus });
+      await createSale({ customerId: customer.id, productId: editForm.productId, qty: editForm.qty, paymentStatus: editForm.paymentStatus, partialAmount: editForm.partialAmount });
     }
     setSaving(false);
     setEditForm(null);
@@ -221,7 +221,13 @@ export default function CustomerDetail() {
                         <button
                           key={s}
                           type="button"
-                          onClick={() => setEditForm({ ...editForm, paymentStatus: s })}
+                          onClick={() =>
+                            setEditForm({
+                              ...editForm,
+                              paymentStatus: s,
+                              partialAmount: s === "Partial" && !editForm.partialAmount ? String(Math.round(editTotal / 2)) : editForm.partialAmount,
+                            })
+                          }
                           className={`flex-1 rounded-lg border py-2.5 text-[13px] font-semibold ${
                             editForm.paymentStatus === s ? "border-[1.5px] border-teal bg-teal-soft text-teal" : "border-border"
                           }`}
@@ -230,6 +236,9 @@ export default function CustomerDetail() {
                         </button>
                       ))}
                     </div>
+                    {editForm.paymentStatus === "Partial" && (
+                      <Field label="Amount Paid Now" value={editForm.partialAmount} onChange={(e) => setEditForm({ ...editForm, partialAmount: e.target.value })} required />
+                    )}
                   </div>
                 )}
               </div>

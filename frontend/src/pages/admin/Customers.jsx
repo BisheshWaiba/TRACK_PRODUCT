@@ -7,7 +7,7 @@ import Field from "../../components/ui/Field";
 import { money } from "../../lib/format";
 import { useData } from "../../context/DataContext";
 
-const emptyForm = { name: "", contact: "", phone: "", address: "", productId: "", qty: 1, paymentStatus: "Paid" };
+const emptyForm = { name: "", contact: "", phone: "", address: "", productId: "", qty: 1, paymentStatus: "Paid", partialAmount: "" };
 
 export default function Customers() {
   const { customers, products, productById, getCustomerStats, createCustomer, updateCustomer, deleteCustomer, createSale, loading } = useData();
@@ -36,7 +36,7 @@ export default function Customers() {
     setSaving(true);
     const newId = await createCustomer(form);
     if (form.productId && Number(form.qty) > 0) {
-      await createSale({ customerId: newId, productId: form.productId, qty: form.qty, paymentStatus: form.paymentStatus });
+      await createSale({ customerId: newId, productId: form.productId, qty: form.qty, paymentStatus: form.paymentStatus, partialAmount: form.partialAmount });
     }
     setSaving(false);
     setForm(emptyForm);
@@ -46,7 +46,7 @@ export default function Customers() {
   function openEdit(e, c) {
     e.preventDefault();
     e.stopPropagation();
-    setEditForm({ id: c.id, name: c.name, contact: c.contact, phone: c.phone, address: c.address, productId: "", qty: 1, paymentStatus: "Paid" });
+    setEditForm({ id: c.id, name: c.name, contact: c.contact, phone: c.phone, address: c.address, productId: "", qty: 1, paymentStatus: "Paid", partialAmount: "" });
   }
 
   async function handleEditSave(e) {
@@ -54,7 +54,7 @@ export default function Customers() {
     setSaving(true);
     await updateCustomer(editForm.id, editForm);
     if (editForm.productId && Number(editForm.qty) > 0) {
-      await createSale({ customerId: editForm.id, productId: editForm.productId, qty: editForm.qty, paymentStatus: editForm.paymentStatus });
+      await createSale({ customerId: editForm.id, productId: editForm.productId, qty: editForm.qty, paymentStatus: editForm.paymentStatus, partialAmount: editForm.partialAmount });
     }
     setSaving(false);
     setEditForm(null);
@@ -219,7 +219,13 @@ export default function Customers() {
                     <button
                       key={s}
                       type="button"
-                      onClick={() => setForm({ ...form, paymentStatus: s })}
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          paymentStatus: s,
+                          partialAmount: s === "Partial" && !form.partialAmount ? String(Math.round(newTotal / 2)) : form.partialAmount,
+                        })
+                      }
                       className={`flex-1 rounded-lg border py-2.5 text-[13px] font-semibold ${
                         form.paymentStatus === s ? "border-[1.5px] border-teal bg-teal-soft text-teal" : "border-border"
                       }`}
@@ -228,6 +234,9 @@ export default function Customers() {
                     </button>
                   ))}
                 </div>
+                {form.paymentStatus === "Partial" && (
+                  <Field label="Amount Paid Now" value={form.partialAmount} onChange={(e) => setForm({ ...form, partialAmount: e.target.value })} required />
+                )}
               </div>
             )}
           </div>
@@ -282,7 +291,13 @@ export default function Customers() {
                       <button
                         key={s}
                         type="button"
-                        onClick={() => setEditForm({ ...editForm, paymentStatus: s })}
+                        onClick={() =>
+                          setEditForm({
+                            ...editForm,
+                            paymentStatus: s,
+                            partialAmount: s === "Partial" && !editForm.partialAmount ? String(Math.round(editTotal / 2)) : editForm.partialAmount,
+                          })
+                        }
                         className={`flex-1 rounded-lg border py-2.5 text-[13px] font-semibold ${
                           editForm.paymentStatus === s ? "border-[1.5px] border-teal bg-teal-soft text-teal" : "border-border"
                         }`}
@@ -291,6 +306,9 @@ export default function Customers() {
                       </button>
                     ))}
                   </div>
+                  {editForm.paymentStatus === "Partial" && (
+                    <Field label="Amount Paid Now" value={editForm.partialAmount} onChange={(e) => setEditForm({ ...editForm, partialAmount: e.target.value })} required />
+                  )}
                 </div>
               )}
             </div>

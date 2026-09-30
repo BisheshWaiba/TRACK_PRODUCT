@@ -234,7 +234,7 @@ export function DataProvider({ children }) {
     setPayments((prev) => prev.map((p) => (p.id === id ? { ...p, ...row } : p)));
   }
 
-  async function createSale({ customerId, productId, qty, paymentStatus }) {
+  async function createSale({ customerId, productId, qty, paymentStatus, partialAmount }) {
     const id = newId("SL");
     const date = new Date().toISOString().slice(0, 10);
     const quantity = Number(qty) || 1;
@@ -251,7 +251,7 @@ export function DataProvider({ children }) {
     }
     if (paymentStatus === "Paid" || paymentStatus === "Partial") {
       const total = product ? product.price * quantity : 0;
-      const amount = paymentStatus === "Paid" ? total : Math.round(total / 2);
+      const amount = paymentStatus === "Paid" ? total : Math.min(Math.max(Number(partialAmount) || 0, 1), total);
       await createPayment({ saleId: id, amount, method: "Cash on Delivery", date });
     }
     return id;

@@ -2,6 +2,7 @@ import { useState } from "react";
 import Icon from "../../components/icons/Icon";
 import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
+import Field from "../../components/ui/Field";
 import { money } from "../../lib/format";
 import { useData } from "../../context/DataContext";
 
@@ -11,7 +12,7 @@ export default function Sales() {
   const { sales, products, customers, customerById, productById, saleTotal, salePaymentStatus, createSale, loading } = useData();
   const [tab, setTab] = useState("All Sales");
   const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ customerId: "", productId: "", qty: 1, status: "Paid" });
+  const [form, setForm] = useState({ customerId: "", productId: "", qty: 1, status: "Paid", partialAmount: "" });
   const [saving, setSaving] = useState(false);
 
   const shown = sales.filter((s) => tab === "All Sales" || salePaymentStatus(s) === tab);
@@ -20,14 +21,18 @@ export default function Sales() {
   const available = product ? product.stockTotal - product.stockTaken : 0;
 
   function openModal() {
-    setForm({ customerId: customers[0]?.id || "", productId: products[0]?.id || "", qty: 1, status: "Paid" });
+    setForm({ customerId: customers[0]?.id || "", productId: products[0]?.id || "", qty: 1, status: "Paid", partialAmount: "" });
     setModalOpen(true);
+  }
+
+  function pickStatus(s) {
+    setForm({ ...form, status: s, partialAmount: s === "Partial" && !form.partialAmount ? String(Math.round(total / 2)) : form.partialAmount });
   }
 
   async function handleSave(e) {
     e.preventDefault();
     setSaving(true);
-    await createSale({ customerId: form.customerId, productId: form.productId, qty: form.qty, paymentStatus: form.status });
+    await createSale({ customerId: form.customerId, productId: form.productId, qty: form.qty, paymentStatus: form.status, partialAmount: form.partialAmount });
     setSaving(false);
     setModalOpen(false);
   }
@@ -137,7 +142,7 @@ export default function Sales() {
                 <button
                   key={s}
                   type="button"
-                  onClick={() => setForm({ ...form, status: s })}
+                  onClick={() => pickStatus(s)}
                   className={`flex-1 rounded-lg border py-2.5 text-[13px] font-semibold ${
                     form.status === s ? "border-[1.5px] border-teal bg-teal-soft text-teal" : "border-border"
                   }`}
@@ -147,6 +152,14 @@ export default function Sales() {
               ))}
             </div>
           </div>
+          {form.status === "Partial" && (
+            <Field
+              label="Amount Paid Now"
+              value={form.partialAmount}
+              onChange={(e) => setForm({ ...form, partialAmount: e.target.value })}
+              required
+            />
+          )}
           <div className="flex items-center gap-2 rounded-lg bg-surface-2 px-3 py-2.5 text-xs text-muted">
             <Icon name="check" className="h-3.5 w-3.5 text-teal" strokeWidth={2} />
             Inventory will update automatically — {Math.max(available - form.qty, 0)} units will remain after this sale.
