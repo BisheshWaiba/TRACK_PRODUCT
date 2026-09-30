@@ -138,19 +138,79 @@ arrives.
 
 The migration has **not** been applied to the hosted project yet.
 
+The backfill is `on conflict do nothing` and every table is
+`create ... if not exists`, so re-running is safe. The first run does
+write real rows — one ledger entry per existing sale and payment, and
+`unit_price` filled in on every sale — so take a backup first
+(Database → Backups).
+
+### Either: the CLI
+
+Run from the repo root, the folder holding `supabase/config.toml`. No
+global install needed; `npx` fetches the CLI.
+
 ```bash
-supabase link --project-ref <ref>
-supabase db push
+cd <this repo>
+npx supabase login                                    # opens a browser
+npx supabase link --project-ref fzcoxjcgwzaitpthjfvl  # asks for the DB password
+npx supabase migration list                           # read-only: confirms only this one is pending
+npx supabase db push
 ```
 
-That records it in `supabase_migrations.schema_migrations` alongside the
-existing five, which is what keeps future migrations lined up. If it is
-ever applied by hand instead, insert the version row too or the CLI will
-try to run it again.
+This records the migration in `supabase_migrations.schema_migrations`
+alongside the existing five, which is what keeps future migrations lined
+up.
 
-The backfill is `on conflict do nothing`, so re-running is safe. The first
-run does write real rows — one ledger entry per existing sale and payment
-— so take a backup first.
+**If `db push` fails to connect,** it is almost certainly that
+`db.<ref>.supabase.co` resolves IPv6-only while the network is IPv4.
+Force it through the IPv4 pooler:
+
+```bash
+npx supabase db push --db-url "postgresql://postgres.fzcoxjcgwzaitpthjfvl:<password>@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
+```
+
+That host and user are known to work for this project.
+
+### Or: the SQL editor
+
+Paste `supabase/migrations/20260930030000_finance_module.sql` into
+Dashboard → SQL Editor → New query, and run it. It is one transaction:
+it either lands completely or not at all.
+
+Then run this as well, or the CLI will try to apply the same migration
+again later:
+
+```sql
+insert into supabase_migrations.schema_migrations (version, name, statements)
+values ('20260930030000', 'finance_module', array['-- applied via the SQL editor']::text[])
+on conflict (version) do nothing;
+```
+
+Do one route or the other, not both.
+
+### Checking it worked
+
+```sql
+-- one ledger entry per sale and per payment
+select (select count(*) from sales)                                             as sales,
+       (select count(*) from customer_ledger_entries where source_type='sale')  as sale_entries,
+       (select count(*) from payments)                                          as payments,
+       (select count(*) from customer_ledger_entries where source_type='payment') as payment_entries;
+
+-- no sale left without the price it was made at
+select count(*) as missing_unit_price from sales where unit_price is null;
+
+-- the ledger must agree with what the app already shows
+select (select coalesce(sum(case when entry_type='debit' then amount else -amount end),0)
+          from customer_ledger_entries) as ledger,
+       (select coalesce(sum(coalesce(s.unit_price,p.price)*s.qty),0)
+          from sales s join products p on p.id=s.product_id)
+       - (select coalesce(sum(amount),0) from payments) as app;
+```
+
+The two counts must match, `missing_unit_price` must be 0, and `ledger`
+must equal `app`. If that last one disagrees, stop — the finance screens
+would be contradicting the Customers page.
 
 ---
 
