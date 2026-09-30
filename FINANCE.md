@@ -248,21 +248,32 @@ from the app.
 
 ## What is left
 
-In dependency order — each only needs the ones above it:
+All six items below shipped, screen by screen, matching
+`finance-port/FINANCE-SPEC.md` from the
+[Jageer Nepal](https://github.com/sagaritnepal/Jageer-Nepal) port kit:
 
-1. **Ledger balances on the Customers page.** Worth doing first: the page
-   currently recomputes `outstanding` its own way, so that number has two
-   sources of truth right now.
-2. **Received / Payment Out forms** — recording money against a customer
-   or a supplier directly, rather than only against a sale.
-3. **Purchase and expense entry** — the screens for
-   `business_transactions`.
-4. **Bank accounts and transfers.**
-5. **Profit and loss** — `report()` already exists in the money module;
-   this is a page over it. Note the current Reports page's "Sales trend —
-   last 30 days" chart is a hardcoded SVG polyline, not data.
-6. **Statement import** — parse a bank export, drop rows already imported
-   by reference code, classify, review, commit.
+1. ~~Ledger balances on the Customers page.~~ Done — Customers and
+   Customer Detail read `useFinance().ledger` now; the old
+   sales-only `outstanding` calculation is gone.
+2. ~~Received / Payment Out forms.~~ Done — `ReceivedPayments.jsx`,
+   one form, two directions, with the spec's receipt-numbering
+   fallback and create-party-on-save.
+3. ~~Purchase and expense entry.~~ Done — `Purchases.jsx` (itemised,
+   also restocks/creates products) and `Expenses.jsx` (with inline
+   category management).
+4. ~~Bank accounts and transfers.~~ Done — `BankAccounts.jsx`.
+5. ~~Profit and loss.~~ Done — a "Profit & Loss" tab on Reports, calling
+   the existing `report()`. The Reports page's "Sales trend — last 30
+   days" chart is still a hardcoded SVG polyline, not data — untouched,
+   not part of the finance port.
+6. **Statement import** — not built. Needs a real bank export sample to
+   write the parser against (§3.8's column layout is Jageer's bank, not
+   necessarily ours); revisit when one is available.
+
+Also not ported: the **Inventory cross-reference screen** (§3.9). This
+app already tracks real stock via `products`/`stock_movements`, unlike
+Jageer which has no product catalog — matching bill line items by name
+to fake a stock count would be a downgrade, not a port.
 
 ### Two loose ends worth knowing about
 
