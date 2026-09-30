@@ -4,15 +4,21 @@ import Icon from "../../components/icons/Icon";
 import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
 import Field from "../../components/ui/Field";
+import FinanceCrumb from "../../components/ui/FinanceCrumb";
 import { money } from "../../lib/format";
 import { useData } from "../../context/DataContext";
 import { useFinance, today } from "../../context/FinanceContext";
 
+// The spec's own five-item menu (FINANCE-SPEC.md §3.1): "Resist splitting
+// this back into five buttons." Sale links to the existing Sales flow
+// rather than a bill form - this app already has a real per-product sales
+// screen the Jageer original doesn't need to duplicate.
 const NEW_ENTRY_LINKS = [
-  { to: "/received-payments", label: "Received / Payment Out", icon: "history" },
+  { to: "/received-payments?direction=received", label: "Received", icon: "arrowDown" },
+  { to: "/received-payments?direction=payment_out", label: "Payment Out", icon: "arrowUp" },
   { to: "/sales", label: "Sale", icon: "receipt" },
-  { to: "/purchases", label: "Purchase", icon: "cart" },
-  { to: "/expenses", label: "Expense", icon: "arrowUp" },
+  { to: "/purchases?add=1", label: "Purchase", icon: "cart" },
+  { to: "/expenses?add=1", label: "Expense", icon: "arrowUp" },
 ];
 
 function NewEntryMenu() {
@@ -140,6 +146,7 @@ export default function DayBook() {
 
   return (
     <div className="flex flex-col gap-6">
+      <FinanceCrumb label="Day Book" />
       <div className="card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="font-display text-xl font-bold">Day Book</div>

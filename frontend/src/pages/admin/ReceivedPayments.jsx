@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import Icon from "../../components/icons/Icon";
 import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
 import Field from "../../components/ui/Field";
+import FinanceCrumb from "../../components/ui/FinanceCrumb";
 import { money } from "../../lib/format";
 import { useData } from "../../context/DataContext";
 import { useFinance, today } from "../../context/FinanceContext";
@@ -14,9 +16,24 @@ function blankForm(direction, no) {
 export default function ReceivedPayments() {
   const { customers, createCustomer, loading: dataLoading } = useData();
   const { bankAccounts, customerEntries, vendorEntries, nextReceiptNo, nextPaymentNo, recordReceipt, recordPayout, loading: financeLoading } = useFinance();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(() => blankForm("received", nextReceiptNo()));
   const [saving, setSaving] = useState(false);
+
+  // Reached from the Finance hub's "Received"/"Payment Out" shortcuts with
+  // ?direction=received|payment_out - open straight into that direction.
+  // Waits on financeLoading so nextReceiptNo()/nextPaymentNo() see real
+  // entries instead of computing "001" against still-empty arrays.
+  useEffect(() => {
+    if (financeLoading) return;
+    const direction = searchParams.get("direction");
+    if (direction === "received" || direction === "payment_out") {
+      openModal(direction);
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [financeLoading]);
 
   if (dataLoading || financeLoading) return <div className="p-8 text-sm text-muted">Loading…</div>;
 
@@ -69,6 +86,7 @@ export default function ReceivedPayments() {
 
   return (
     <div className="flex flex-col gap-5">
+      <FinanceCrumb label="Received / Paid" />
       <div className="flex justify-end gap-2.5">
         <button onClick={() => openModal("received")} className="btn-primary">
           <Icon name="arrowDown" className="h-[15px] w-[15px]" strokeWidth={2.2} />

@@ -2,6 +2,7 @@ import { useState } from "react";
 import Icon from "../../components/icons/Icon";
 import Modal from "../../components/ui/Modal";
 import Field from "../../components/ui/Field";
+import FinanceCrumb from "../../components/ui/FinanceCrumb";
 import { money } from "../../lib/format";
 import { useFinance, today } from "../../context/FinanceContext";
 
@@ -81,6 +82,7 @@ export default function BankAccounts() {
 
   return (
     <div className="flex flex-col gap-5">
+      <FinanceCrumb label="Bank Accounts" />
       <div className="flex justify-end gap-2.5">
         <button onClick={() => setTransferOpen(true)} className="btn-ghost">Record Transfer</button>
         <button onClick={() => setAccountForm(blankAccountForm())} className="btn-primary">

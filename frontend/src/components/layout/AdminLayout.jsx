@@ -4,6 +4,11 @@ import Icon from "../icons/Icon";
 import NotificationBell from "./NotificationBell";
 import { useAuth } from "../../context/AuthContext";
 
+// Finance (Day Book, Purchases, Expenses, Received/Paid, Bank Accounts) is
+// deliberately not five separate sidebar entries - it's one, matching the
+// single "Finance" tab in the Jageer Nepal app these were ported from. Its
+// own shortcuts grid (Finance.jsx) and each screen's FinanceCrumb are the
+// only way in from here, same as that app's design.
 const NAV = [
   { to: "/", label: "Dashboard", icon: "grid", end: true },
   { to: "/products", label: "Products", icon: "box" },
@@ -11,11 +16,7 @@ const NAV = [
   { to: "/customers", label: "Customers", icon: "users" },
   { to: "/sales", label: "Sales", icon: "receipt" },
   { to: "/payments", label: "Payments", icon: "wallet" },
-  { to: "/purchases", label: "Purchases", icon: "cart" },
-  { to: "/expenses", label: "Expenses", icon: "arrowUp" },
-  { to: "/received-payments", label: "Received / Paid", icon: "history" },
-  { to: "/bank-accounts", label: "Bank Accounts", icon: "cashBank" },
-  { to: "/daybook", label: "Day Book", icon: "cash" },
+  { to: "/finance", label: "Finance", icon: "cashBank" },
   { to: "/reports", label: "Reports", icon: "chart" },
   { to: "/account", label: "Account", icon: "user" },
 ];
@@ -27,10 +28,12 @@ const TITLES = {
   "/customers": "Customers",
   "/sales": "Sales",
   "/payments": "Payments",
+  "/finance": "Finance",
   "/purchases": "Purchases",
   "/expenses": "Expenses",
   "/received-payments": "Received / Paid",
   "/bank-accounts": "Bank Accounts",
+  "/daybook": "Day Book",
   "/reports": "Reports",
   "/account": "Account",
 };

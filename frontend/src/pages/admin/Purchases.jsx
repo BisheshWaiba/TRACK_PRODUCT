@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import Icon from "../../components/icons/Icon";
 import Modal from "../../components/ui/Modal";
 import Field from "../../components/ui/Field";
+import FinanceCrumb from "../../components/ui/FinanceCrumb";
 import { money } from "../../lib/format";
 import { useData } from "../../context/DataContext";
 import { useFinance, today } from "../../context/FinanceContext";
@@ -17,9 +19,20 @@ function blankForm() {
 export default function Purchases() {
   const { loading: dataLoading, products, customers, createProduct, createStockMovement } = useData();
   const { loading: financeLoading, transactions, saveTransaction } = useFinance();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(blankForm);
   const [saving, setSaving] = useState(false);
+
+  // Reached from the Finance hub's "Purchase" shortcut with ?add=1 - jump
+  // straight into the form instead of making a second click land on it.
+  useEffect(() => {
+    if (searchParams.get("add") === "1") {
+      openModal();
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (dataLoading || financeLoading) return <div className="p-8 text-sm text-muted">Loading purchases…</div>;
 
@@ -114,6 +127,7 @@ export default function Purchases() {
 
   return (
     <div className="flex flex-col gap-5">
+      <FinanceCrumb label="Purchases" />
       <div className="flex justify-end">
         <button onClick={openModal} className="btn-primary">
           <Icon name="plus" className="h-[15px] w-[15px]" strokeWidth={2.2} />

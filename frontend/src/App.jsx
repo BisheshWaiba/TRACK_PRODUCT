@@ -14,6 +14,7 @@ import Customers from "./pages/admin/Customers";
 import CustomerDetail from "./pages/admin/CustomerDetail";
 import Sales from "./pages/admin/Sales";
 import Payments from "./pages/admin/Payments";
+import Finance from "./pages/admin/Finance";
 import Purchases from "./pages/admin/Purchases";
 import Expenses from "./pages/admin/Expenses";
 import ReceivedPayments from "./pages/admin/ReceivedPayments";
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="customers/:id" element={<CustomerDetail />} />
             <Route path="sales" element={<Sales />} />
             <Route path="payments" element={<Payments />} />
+            <Route path="finance" element={<Finance />} />
             <Route path="purchases" element={<Purchases />} />
             <Route path="expenses" element={<Expenses />} />
             <Route path="received-payments" element={<ReceivedPayments />} />

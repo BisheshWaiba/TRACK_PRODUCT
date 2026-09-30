@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import Icon from "../../components/icons/Icon";
 import Modal from "../../components/ui/Modal";
 import Field from "../../components/ui/Field";
+import FinanceCrumb from "../../components/ui/FinanceCrumb";
 import { money } from "../../lib/format";
 import { useFinance, today } from "../../context/FinanceContext";
 
@@ -11,6 +13,7 @@ function blankForm() {
 
 export default function Expenses() {
   const { bankAccounts, expenseCategories, transactions, saveTransaction, createExpenseCategory, updateEntry, deleteRow, loading } = useFinance();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(blankForm);
   const [saving, setSaving] = useState(false);
@@ -18,6 +21,16 @@ export default function Expenses() {
   const [newCategory, setNewCategory] = useState("");
   const [renaming, setRenaming] = useState(null);
   const [categoryError, setCategoryError] = useState("");
+
+  // Reached from the Finance hub's "Expenses" shortcut with ?add=1.
+  useEffect(() => {
+    if (searchParams.get("add") === "1") {
+      setForm(blankForm());
+      setModalOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function removeCategory(id) {
     setCategoryError("");
@@ -73,6 +86,7 @@ export default function Expenses() {
 
   return (
     <div className="flex flex-col gap-5">
+      <FinanceCrumb label="Expenses" />
       <div className="flex justify-end gap-2.5">
         <button onClick={() => setManageOpen(true)} className="btn-ghost">Manage Categories</button>
         <button onClick={() => { setForm(blankForm()); setModalOpen(true); }} className="btn-primary">
