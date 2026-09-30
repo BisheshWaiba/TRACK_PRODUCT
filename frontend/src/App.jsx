@@ -15,6 +15,9 @@ import CustomerDetail from "./pages/admin/CustomerDetail";
 import Sales from "./pages/admin/Sales";
 import Payments from "./pages/admin/Payments";
 import Purchases from "./pages/admin/Purchases";
+import Expenses from "./pages/admin/Expenses";
+import ReceivedPayments from "./pages/admin/ReceivedPayments";
+import BankAccounts from "./pages/admin/BankAccounts";
 import DayBook from "./pages/admin/DayBook";
 import Reports from "./pages/admin/Reports";
 import Account from "./pages/admin/Account";
@@ -59,6 +62,9 @@ export default function App() {
             <Route path="sales" element={<Sales />} />
             <Route path="payments" element={<Payments />} />
             <Route path="purchases" element={<Purchases />} />
+            <Route path="expenses" element={<Expenses />} />
+            <Route path="received-payments" element={<ReceivedPayments />} />
+            <Route path="bank-accounts" element={<BankAccounts />} />
             <Route path="daybook" element={<DayBook />} />
             <Route path="reports" element={<Reports />} />
             <Route path="account" element={<Account />} />

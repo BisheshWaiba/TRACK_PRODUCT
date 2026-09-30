@@ -4,20 +4,22 @@ import Icon from "../../components/icons/Icon";
 import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
 import Field from "../../components/ui/Field";
-import { money } from "../../lib/format";
+import { money, ledgerLine } from "../../lib/format";
 import { useData } from "../../context/DataContext";
+import { useFinance } from "../../context/FinanceContext";
 
 export default function CustomerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { customerById, salesForCustomer, productById, products, saleTotal, salePaymentStatus, getCustomerStats, payments, updateCustomer, deleteCustomer, createSale, loading } = useData();
+  const { ledger, customerEntries, vendorEntries, loading: financeLoading } = useFinance();
   const customer = customerById(id);
   const [editForm, setEditForm] = useState(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
-  if (loading) {
+  if (loading || financeLoading) {
     return <div className="p-8 text-sm text-muted">Loading customer…</div>;
   }
 
@@ -33,7 +35,10 @@ export default function CustomerDetail() {
   const stats = getCustomerStats(customer.id);
   const custSales = salesForCustomer(customer.id);
   const custPayments = payments.filter((p) => custSales.some((s) => s.id === p.saleId));
-  const status = stats.outstanding <= 0 ? "Paid Up" : stats.outstanding < stats.totalPurchases * 0.3 ? "Partial" : "Pending";
+  const partyEntry = ledger.byParty.get(customer.id);
+  const line = ledgerLine(partyEntry);
+  const custLedger = customerEntries.filter((e) => e.customerId === customer.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const custVendorLedger = vendorEntries.filter((e) => e.vendorId === customer.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const initials = customer.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
   function openEdit() {
@@ -85,7 +90,7 @@ export default function CustomerDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2.5">
-          <Badge tone={status === "Paid Up" ? "teal" : status === "Partial" ? "slate" : "accent"}>{status}</Badge>
+          <Badge tone={line.tone}>{line.label}</Badge>
           <button onClick={openEdit} title="Edit customer" className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2">
             <Icon name="edit" className="h-[14px] w-[14px] text-ink-soft" strokeWidth={1.7} />
           </button>
@@ -98,7 +103,7 @@ export default function CustomerDetail() {
       <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
         <div className="card"><span className="text-xs font-semibold text-muted">TOTAL PURCHASES</span><div className="mt-1.5 font-display text-xl font-bold">{money(stats.totalPurchases)}</div></div>
         <div className="card"><span className="text-xs font-semibold text-muted">TOTAL PAID</span><div className="mt-1.5 font-display text-xl font-bold text-teal">{money(stats.totalPaid)}</div></div>
-        <div className="card"><span className="text-xs font-semibold text-muted">OUTSTANDING BALANCE</span><div className={`mt-1.5 font-display text-xl font-bold ${stats.outstanding > 0 ? "text-danger" : ""}`}>{money(stats.outstanding)}</div></div>
+        <div className="card"><span className="text-xs font-semibold text-muted">TO RECEIVE (LEDGER)</span><div className={`mt-1.5 font-display text-xl font-bold ${(partyEntry?.receivable || 0) > 0 ? "text-danger" : "text-teal"}`}>{money(Math.max(partyEntry?.receivable || 0, 0))}</div></div>
         <div className="card"><span className="text-xs font-semibold text-muted">UNITS TAKEN</span><div className="mt-1.5 font-display text-xl font-bold">{stats.unitsTaken}</div></div>
       </div>
 
@@ -172,6 +177,47 @@ export default function CustomerDetail() {
           ))}
           {custPayments.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-6 text-center text-sm text-muted">No payments recorded yet.</div>}
         </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <span className="text-[15px] font-semibold">Account ledger</span>
+        <div className="flex flex-col gap-2">
+          {custLedger.map((e) => {
+            const isCredit = e.entryType === "credit";
+            const label = isCredit ? "Payment received" : e.source === "manual" ? "Refund / adjustment" : "Sale booked";
+            return (
+              <div key={e.id} className="flex items-center justify-between rounded-xl2 border border-border bg-surface px-4 py-3 text-[13px]">
+                <div>
+                  <div className="font-semibold">{label}{e.note ? ` · ${e.note}` : ""}</div>
+                  <div className="text-[11.5px] text-muted">{e.entryDate || e.createdAt.slice(0, 10)}{e.receiptNo ? ` · Receipt #${e.receiptNo}` : ""}</div>
+                </div>
+                <span className={`font-semibold ${isCredit ? "text-teal" : "text-danger"}`}>{isCredit ? "−" : "+"}{money(e.amount)}</span>
+              </div>
+            );
+          })}
+          {custLedger.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-6 text-center text-sm text-muted">No ledger activity yet.</div>}
+        </div>
+
+        {custVendorLedger.length > 0 && (
+          <>
+            <span className="mt-2 text-[15px] font-semibold">As a supplier — what we owe them</span>
+            <div className="flex flex-col gap-2">
+              {custVendorLedger.map((e) => {
+                const isCredit = e.entryType === "credit";
+                const label = isCredit ? "Paid to supplier" : e.source === "manual" ? "Adjustment" : "Purchase booked";
+                return (
+                  <div key={e.id} className="flex items-center justify-between rounded-xl2 border border-border bg-surface px-4 py-3 text-[13px]">
+                    <div>
+                      <div className="font-semibold">{label}{e.note ? ` · ${e.note}` : ""}</div>
+                      <div className="text-[11.5px] text-muted">{e.entryDate || e.createdAt.slice(0, 10)}{e.receiptNo ? ` · Payment #${e.receiptNo}` : ""}</div>
+                    </div>
+                    <span className={`font-semibold ${isCredit ? "text-danger" : "text-teal"}`}>{isCredit ? "−" : "+"}{money(e.amount)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       <Modal open={!!editForm} onClose={() => setEditForm(null)} title="Edit Customer" width="max-w-[460px]">

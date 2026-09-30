@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import Icon from "../../components/icons/Icon";
 import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
@@ -6,6 +7,38 @@ import Field from "../../components/ui/Field";
 import { money } from "../../lib/format";
 import { useData } from "../../context/DataContext";
 import { useFinance, today } from "../../context/FinanceContext";
+
+const NEW_ENTRY_LINKS = [
+  { to: "/received-payments", label: "Received / Payment Out", icon: "history" },
+  { to: "/sales", label: "Sale", icon: "receipt" },
+  { to: "/purchases", label: "Purchase", icon: "cart" },
+  { to: "/expenses", label: "Expense", icon: "arrowUp" },
+];
+
+function NewEntryMenu() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen((o) => !o)} className="btn-primary">
+        <Icon name="plus" className="h-[15px] w-[15px]" strokeWidth={2.2} />
+        New Entry
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 z-20 mt-2 flex w-56 flex-col overflow-hidden rounded-xl2 border border-border bg-surface py-1.5 shadow-2xl">
+            {NEW_ENTRY_LINKS.map((l) => (
+              <Link key={l.to} to={l.to} onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-[13.5px] font-semibold hover:bg-surface-2">
+                <Icon name={l.icon} className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 // One day laid out like a paper cash book. Two kinds of row, and the
 // difference is the whole point: a sale or a purchase bill shows what
@@ -127,6 +160,7 @@ export default function DayBook() {
               Today
             </button>
           )}
+          <NewEntryMenu />
         </div>
       </div>
 

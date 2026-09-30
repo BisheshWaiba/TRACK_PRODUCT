@@ -224,6 +224,13 @@ export function FinanceProvider({ children }) {
     await refresh();
   }
 
+  async function createExpenseCategory(name) {
+    const { data, error: err } = await supabase.from("expense_categories").insert({ name }).select().single();
+    if (err) throw err;
+    await refresh();
+    return data.id;
+  }
+
   async function createBankAccount(input) {
     const { error: err } = await supabase.from("bank_accounts").insert({
       name: input.name, bank_name: input.bankName || null, account_number: input.accountNumber || null,
@@ -262,7 +269,7 @@ export function FinanceProvider({ children }) {
     nextReceiptNo: () => nextNumber(customerEntries),
     nextPaymentNo: () => nextNumber(vendorEntries),
     recordReceipt, recordPayout, saveTransaction, updateEntry, deleteRow,
-    createBankAccount, createTransfer,
+    createBankAccount, createTransfer, createExpenseCategory,
   };
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;

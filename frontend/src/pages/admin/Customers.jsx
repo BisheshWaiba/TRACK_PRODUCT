@@ -4,13 +4,15 @@ import Icon from "../../components/icons/Icon";
 import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
 import Field from "../../components/ui/Field";
-import { money } from "../../lib/format";
+import { money, ledgerLine } from "../../lib/format";
 import { useData } from "../../context/DataContext";
+import { useFinance } from "../../context/FinanceContext";
 
 const emptyForm = { name: "", contact: "", phone: "", address: "", productId: "", qty: 1, paymentStatus: "Paid", partialAmount: "" };
 
 export default function Customers() {
   const { customers, products, productById, getCustomerStats, createCustomer, updateCustomer, deleteCustomer, createSale, loading } = useData();
+  const { ledger, loading: financeLoading } = useFinance();
   const [modalOpen, setModalOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [form, setForm] = useState(emptyForm);
@@ -79,10 +81,15 @@ export default function Customers() {
     }
   }
 
-  if (loading) return <div className="p-8 text-sm text-muted">Loading customers…</div>;
+  if (loading || financeLoading) return <div className="p-8 text-sm text-muted">Loading customers…</div>;
 
   return (
     <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-5">
+        <div className="card"><span className="text-xs font-semibold text-muted">TO RECEIVE</span><div className="mt-1.5 font-display text-xl font-bold text-teal">{money(ledger.totalReceivable)}</div></div>
+        <div className="card"><span className="text-xs font-semibold text-muted">TO PAY</span><div className="mt-1.5 font-display text-xl font-bold text-danger">{money(ledger.totalPayable)}</div></div>
+      </div>
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="field flex w-full items-center gap-2 sm:w-64">
           <Icon name="search" className="h-4 w-4 text-muted" strokeWidth={2} />
@@ -96,18 +103,18 @@ export default function Customers() {
 
       {/* Desktop table */}
       <div className="hidden overflow-x-auto rounded-xl2 border border-border bg-surface sm:block">
-        <div className="grid min-w-[980px] grid-cols-[1.7fr_1.1fr_1fr_1fr_1fr_0.9fr_0.8fr] gap-2 bg-surface-2 px-5 py-3.5 text-[11px] font-bold tracking-wide text-muted">
-          <span>BUSINESS / CONTACT</span><span>PHONE</span><span>UNITS TAKEN</span><span>TOTAL PURCHASES</span><span>OUTSTANDING</span><span>STATUS</span><span>ACTIONS</span>
+        <div className="grid min-w-[980px] grid-cols-[1.7fr_1.1fr_1fr_1fr_1.4fr_0.8fr] gap-2 bg-surface-2 px-5 py-3.5 text-[11px] font-bold tracking-wide text-muted">
+          <span>BUSINESS / CONTACT</span><span>PHONE</span><span>UNITS TAKEN</span><span>TOTAL PURCHASES</span><span>BALANCE</span><span>ACTIONS</span>
         </div>
         {shown.map((c) => {
           const stats = getCustomerStats(c.id);
-          const status = stats.outstanding <= 0 ? "Paid Up" : stats.outstanding < stats.totalPurchases * 0.3 ? "Partial" : "Pending";
+          const line = ledgerLine(ledger.byParty.get(c.id));
           const initials = c.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
           return (
             <Link
               to={`/customers/${c.id}`}
               key={c.id}
-              className="grid min-w-[980px] grid-cols-[1.7fr_1.1fr_1fr_1fr_1fr_0.9fr_0.8fr] items-center gap-2 border-t border-border px-5 py-4 text-[13px] hover:bg-bg"
+              className="grid min-w-[980px] grid-cols-[1.7fr_1.1fr_1fr_1fr_1.4fr_0.8fr] items-center gap-2 border-t border-border px-5 py-4 text-[13px] hover:bg-bg"
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-[13px] font-bold text-ink-soft">
@@ -121,8 +128,7 @@ export default function Customers() {
               <span>{c.phone}</span>
               <span className="font-semibold">{stats.unitsTaken} units</span>
               <span className="font-semibold">{money(stats.totalPurchases)}</span>
-              <span className={stats.outstanding > 0 ? "font-semibold text-danger" : "font-semibold text-teal"}>{money(stats.outstanding)}</span>
-              <Badge tone={status === "Paid Up" ? "teal" : status === "Partial" ? "slate" : "accent"}>{status}</Badge>
+              <Badge tone={line.tone}>{line.label}</Badge>
               <div className="flex gap-1.5">
                 <button onClick={(e) => openEdit(e, c)} title="Edit customer" className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-2">
                   <Icon name="edit" className="h-[13px] w-[13px] text-ink-soft" strokeWidth={1.7} />
@@ -141,7 +147,7 @@ export default function Customers() {
       <div className="flex flex-col gap-2 sm:hidden">
         {shown.map((c) => {
           const stats = getCustomerStats(c.id);
-          const status = stats.outstanding <= 0 ? "Paid Up" : stats.outstanding < stats.totalPurchases * 0.3 ? "Partial" : "Pending";
+          const line = ledgerLine(ledger.byParty.get(c.id));
           const initials = c.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
           return (
             <Link to={`/customers/${c.id}`} key={c.id} className="flex flex-col gap-2 rounded-xl2 border border-border bg-surface p-3">
@@ -166,10 +172,7 @@ export default function Customers() {
               </div>
               <div className="flex items-center justify-between text-[13px]">
                 <span className="text-muted">{stats.unitsTaken} units · {money(stats.totalPurchases)}</span>
-                <div className="flex items-center gap-2">
-                  <span className={stats.outstanding > 0 ? "font-semibold text-danger" : "font-semibold text-teal"}>{money(stats.outstanding)}</span>
-                  <Badge tone={status === "Paid Up" ? "teal" : status === "Partial" ? "slate" : "accent"}>{status}</Badge>
-                </div>
+                <Badge tone={line.tone}>{line.label}</Badge>
               </div>
             </Link>
           );

@@ -215,10 +215,10 @@ export function DataProvider({ children }) {
     const row = {
       id,
       name: input.name,
-      contact: input.contact,
-      phone: input.phone,
-      address: input.address,
-      city: input.address.split(",").pop()?.trim() || "",
+      contact: input.contact || "",
+      phone: input.phone || "",
+      address: input.address || "",
+      city: (input.address || "").split(",").pop()?.trim() || "",
       joined: new Date().toISOString().slice(0, 10),
     };
     const { error: err } = await supabase.from("customers").insert(row);
