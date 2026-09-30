@@ -227,6 +227,13 @@ export function DataProvider({ children }) {
     setPayments((prev) => [mapPayment(row), ...prev]);
   }
 
+  async function updatePayment(id, patch) {
+    const row = { amount: Number(patch.amount) || 0, method: patch.method, date: patch.date };
+    const { error: err } = await supabase.from("payments").update(row).eq("id", id);
+    if (err) throw err;
+    setPayments((prev) => prev.map((p) => (p.id === id ? { ...p, ...row } : p)));
+  }
+
   async function createSale({ customerId, productId, qty, paymentStatus }) {
     const id = newId("SL");
     const date = new Date().toISOString().slice(0, 10);
@@ -301,6 +308,7 @@ export function DataProvider({ children }) {
     deleteCustomer,
     createSale,
     createPayment,
+    updatePayment,
     createStockMovement,
   };
 
