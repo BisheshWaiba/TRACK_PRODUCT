@@ -6,13 +6,39 @@ import Field from "../../components/ui/Field";
 import { money } from "../../lib/format";
 import { useData } from "../../context/DataContext";
 
+function PhotoPicker({ preview, onChange }) {
+  return (
+    <label className="flex cursor-pointer items-center gap-4">
+      <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-surface-2 text-muted">
+        {preview ? (
+          <img src={preview} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <Icon name="box" className="h-6 w-6" strokeWidth={1.4} />
+        )}
+      </div>
+      <div className="flex flex-col gap-1">
+        <span className="text-[13px] font-semibold">Product Photo</span>
+        <span className="text-[12px] text-muted">{preview ? "Click to change" : "Click to upload a photo"}</span>
+      </div>
+      <input
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => onChange(e.target.files?.[0] || null)}
+      />
+    </label>
+  );
+}
+
 export default function Products() {
   const { products, stockStatus, createProduct, updateProduct, deleteProduct, loading } = useData();
   const [modalOpen, setModalOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
-  const [form, setForm] = useState({ name: "", category: "", price: "", bundleSize: "", stock: "" });
+  const [form, setForm] = useState({ name: "", category: "", price: "", bundleSize: "", stock: "", imageFile: null });
+  const [imagePreview, setImagePreview] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const [editImagePreview, setEditImagePreview] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const categories = useMemo(() => ["All", "Low / Out of Stock", ...new Set(products.map((p) => p.category))], [products]);
@@ -28,8 +54,19 @@ export default function Products() {
     await deleteProduct(id);
   }
 
+  function pickNewImage(file) {
+    setForm({ ...form, imageFile: file });
+    setImagePreview(file ? URL.createObjectURL(file) : null);
+  }
+
+  function pickEditImage(file) {
+    setEditForm({ ...editForm, imageFile: file });
+    setEditImagePreview(file ? URL.createObjectURL(file) : editForm.currentImageUrl);
+  }
+
   function openEdit(p) {
-    setEditForm({ id: p.id, name: p.name, category: p.category, price: p.price, bundleSize: p.bundleSize, stockTotal: p.stockTotal, reorderAt: p.reorderAt });
+    setEditForm({ id: p.id, name: p.name, category: p.category, price: p.price, bundleSize: p.bundleSize, stockTotal: p.stockTotal, reorderAt: p.reorderAt, imageFile: null, currentImageUrl: p.imageUrl });
+    setEditImagePreview(p.imageUrl);
   }
 
   async function handleEditSave(e) {
@@ -45,7 +82,8 @@ export default function Products() {
     setSaving(true);
     await createProduct(form);
     setSaving(false);
-    setForm({ name: "", category: "", price: "", bundleSize: "", stock: "" });
+    setForm({ name: "", category: "", price: "", bundleSize: "", stock: "", imageFile: null });
+    setImagePreview(null);
     setModalOpen(false);
   }
 
@@ -90,8 +128,12 @@ export default function Products() {
           return (
             <div key={p.id} className="grid min-w-[900px] grid-cols-[1.8fr_1fr_0.9fr_0.9fr_1.1fr_1fr_0.8fr] items-center gap-2 border-t border-border px-5 py-3.5 text-[13px] hover:bg-bg">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-2 text-muted">
-                  <Icon name="box" className="h-[17px] w-[17px]" strokeWidth={1.4} />
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-2 text-muted">
+                  {p.imageUrl ? (
+                    <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <Icon name="box" className="h-[17px] w-[17px]" strokeWidth={1.4} />
+                  )}
                 </div>
                 <span className="font-semibold">{p.name}</span>
               </div>
@@ -118,6 +160,7 @@ export default function Products() {
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Product">
         <form onSubmit={handleSave} className="flex flex-col gap-4">
+          <PhotoPicker preview={imagePreview} onChange={pickNewImage} />
           <Field label="Product Name" placeholder="e.g. Winter Essentials Bundle G" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           <div className="flex gap-3.5">
             <Field label="Category" placeholder="Seasonal" className="flex-1" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
@@ -141,6 +184,7 @@ export default function Products() {
       <Modal open={!!editForm} onClose={() => setEditForm(null)} title="Edit Product">
         {editForm && (
           <form onSubmit={handleEditSave} className="flex flex-col gap-4">
+            <PhotoPicker preview={editImagePreview} onChange={pickEditImage} />
             <Field label="Product Name" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
             <div className="flex gap-3.5">
               <Field label="Category" className="flex-1" value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} />

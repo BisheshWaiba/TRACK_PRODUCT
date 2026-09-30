@@ -14,6 +14,7 @@ function mapProduct(p) {
     stockTotal: p.stock_total,
     stockTaken: p.stock_taken,
     reorderAt: p.reorder_at,
+    imageUrl: p.image_url || null,
   };
 }
 function mapCustomer(c) {
@@ -127,9 +128,18 @@ export function DataProvider({ children }) {
     };
   }
 
+  async function uploadProductImage(productId, file) {
+    const ext = file.name.split(".").pop();
+    const path = `${productId}-${Date.now()}.${ext}`;
+    const { error: err } = await supabase.storage.from("product-images").upload(path, file, { upsert: true });
+    if (err) throw err;
+    return supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+  }
+
   async function createProduct(input) {
     const id = input.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 30) + "-" + Date.now().toString(36);
     const stockTotal = Number(input.stock) || 0;
+    const imageUrl = input.imageFile ? await uploadProductImage(id, input.imageFile) : null;
     const row = {
       id,
       name: input.name,
@@ -140,6 +150,7 @@ export function DataProvider({ children }) {
       stock_total: stockTotal,
       stock_taken: 0,
       reorder_at: Math.max(5, Math.round(stockTotal * 0.2)),
+      image_url: imageUrl,
     };
     const { error: err } = await supabase.from("products").insert(row);
     if (err) throw err;
@@ -155,9 +166,12 @@ export function DataProvider({ children }) {
       stock_total: Number(patch.stockTotal) || 0,
       reorder_at: Number(patch.reorderAt) || 0,
     };
+    if (patch.imageFile) {
+      row.image_url = await uploadProductImage(id, patch.imageFile);
+    }
     const { error: err } = await supabase.from("products").update(row).eq("id", id);
     if (err) throw err;
-    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...mapProduct({ id, ...row, stock_taken: p.stockTaken, items: p.items }) } : p)));
+    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...mapProduct({ id, ...row, stock_taken: p.stockTaken, items: p.items, image_url: row.image_url ?? p.imageUrl }) } : p)));
   }
 
   async function deleteProduct(id) {
