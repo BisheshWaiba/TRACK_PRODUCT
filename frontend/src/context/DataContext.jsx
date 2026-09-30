@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import * as calc from "../lib/calculations";
 
 const DataContext = createContext(null);
 
@@ -96,66 +97,31 @@ export function DataProvider({ children }) {
   }, []);
 
   function productById(id) {
-    return products.find((p) => p.id === id);
+    return calc.productById(products, id);
   }
   function customerById(id) {
-    return customers.find((c) => c.id === id);
+    return calc.customerById(customers, id);
   }
   function saleTotal(sale) {
-    const product = productById(sale.productId);
-    return product ? product.price * sale.qty : 0;
+    return calc.saleTotal(sale, products);
   }
   function salePaidAmount(saleId) {
-    return payments.filter((p) => p.saleId === saleId).reduce((sum, p) => sum + p.amount, 0);
+    return calc.salePaidAmount(payments, saleId);
   }
   function salePaymentStatus(sale) {
-    const total = saleTotal(sale);
-    const paid = salePaidAmount(sale.id);
-    if (paid <= 0) return "Pending";
-    if (paid < total) return "Partial";
-    return "Paid";
+    return calc.salePaymentStatus(sale, products, payments);
   }
   function salesForCustomer(customerId) {
-    return sales.filter((s) => s.customerId === customerId);
+    return calc.salesForCustomer(sales, customerId);
   }
   function getCustomerStats(customerId) {
-    const custSales = salesForCustomer(customerId);
-    const totalPurchases = custSales.reduce((sum, s) => sum + saleTotal(s), 0);
-    const totalPaid = custSales.reduce((sum, s) => sum + salePaidAmount(s.id), 0);
-    const unitsTaken = custSales.reduce((sum, s) => sum + s.qty, 0);
-    return { totalPurchases, totalPaid, outstanding: totalPurchases - totalPaid, unitsTaken };
+    return calc.getCustomerStats(customerId, sales, products, payments);
   }
   function stockStatus(product) {
-    const available = product.stockTotal - product.stockTaken;
-    if (available <= 0) return { label: "Out of Stock", tone: "ink" };
-    if (available <= product.reorderAt) return { label: "Low Stock", tone: "danger" };
-    if (available <= product.reorderAt * 2) return { label: "Selling Fast", tone: "accent" };
-    return { label: "In Stock", tone: "teal" };
+    return calc.stockStatus(product);
   }
   function dashboardTotals() {
-    const totalStock = products.reduce((s, p) => s + p.stockTotal, 0);
-    const totalTaken = products.reduce((s, p) => s + p.stockTaken, 0);
-    const totalAvailable = totalStock - totalTaken;
-    const lowStock = products.filter((p) => {
-      const a = p.stockTotal - p.stockTaken;
-      return a > 0 && a <= p.reorderAt;
-    }).length;
-    const outOfStock = products.filter((p) => p.stockTotal - p.stockTaken <= 0).length;
-    const totalSales = sales.reduce((s, sale) => s + saleTotal(sale), 0);
-    const amountReceived = payments.reduce((s, p) => s + p.amount, 0);
-    const pendingPayments = totalSales - amountReceived;
-    return {
-      totalProducts: products.length,
-      totalStock,
-      totalTaken,
-      totalAvailable,
-      lowStock,
-      outOfStock,
-      totalSales,
-      amountReceived,
-      pendingPayments,
-      activeCustomers: customers.length,
-    };
+    return calc.dashboardTotals(products, customers, sales, payments);
   }
 
   async function uploadProductImage(productId, file) {
