@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 
 import { AuthProvider } from "./context/AuthContext";
 import { DataProvider } from "./context/DataContext";
+import { NotificationProvider } from "./context/NotificationContext";
 import RequireAuth from "./components/RequireAuth";
 import AdminLayout from "./components/layout/AdminLayout";
 
@@ -38,7 +39,9 @@ export default function App() {
             element={
               <RequireAuth>
                 <DataProvider>
-                  <AdminLayout />
+                  <NotificationProvider>
+                    <AdminLayout />
+                  </NotificationProvider>
                 </DataProvider>
               </RequireAuth>
             }

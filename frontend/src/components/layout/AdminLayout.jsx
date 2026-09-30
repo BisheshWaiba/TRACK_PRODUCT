@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import Icon from "../icons/Icon";
+import NotificationBell from "./NotificationBell";
 import { useAuth } from "../../context/AuthContext";
 
 const NAV = [
@@ -97,7 +98,7 @@ export default function AdminLayout() {
         <div className="flex h-[72px] flex-shrink-0 items-center justify-between border-b border-border bg-surface px-8">
           <span className="font-display text-[19px] font-bold">{title}</span>
           <div className="flex items-center gap-4">
-            <Icon name="bell" className="h-[19px] w-[19px] text-ink-soft" strokeWidth={1.7} />
+            <NotificationBell />
             <Link to="/account" title="Account" className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-surface-2 hover:bg-border">
               <Icon name="user" className="h-[17px] w-[17px] text-ink-soft" strokeWidth={1.7} />
             </Link>
