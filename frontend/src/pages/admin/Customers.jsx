@@ -7,7 +7,7 @@ import Field from "../../components/ui/Field";
 import { money } from "../../lib/format";
 import { useData } from "../../context/DataContext";
 
-const emptyForm = { name: "", contact: "", phone: "", address: "", productId: "", qty: 1 };
+const emptyForm = { name: "", contact: "", phone: "", address: "", productId: "", qty: 1, paymentStatus: "Paid" };
 
 export default function Customers() {
   const { customers, products, productById, getCustomerStats, createCustomer, updateCustomer, deleteCustomer, createSale, loading } = useData();
@@ -36,7 +36,7 @@ export default function Customers() {
     setSaving(true);
     const newId = await createCustomer(form);
     if (form.productId && Number(form.qty) > 0) {
-      await createSale({ customerId: newId, productId: form.productId, qty: form.qty, paymentStatus: "Pending" });
+      await createSale({ customerId: newId, productId: form.productId, qty: form.qty, paymentStatus: form.paymentStatus });
     }
     setSaving(false);
     setForm(emptyForm);
@@ -46,7 +46,7 @@ export default function Customers() {
   function openEdit(e, c) {
     e.preventDefault();
     e.stopPropagation();
-    setEditForm({ id: c.id, name: c.name, contact: c.contact, phone: c.phone, address: c.address, productId: "", qty: 1 });
+    setEditForm({ id: c.id, name: c.name, contact: c.contact, phone: c.phone, address: c.address, productId: "", qty: 1, paymentStatus: "Paid" });
   }
 
   async function handleEditSave(e) {
@@ -54,7 +54,7 @@ export default function Customers() {
     setSaving(true);
     await updateCustomer(editForm.id, editForm);
     if (editForm.productId && Number(editForm.qty) > 0) {
-      await createSale({ customerId: editForm.id, productId: editForm.productId, qty: editForm.qty, paymentStatus: "Pending" });
+      await createSale({ customerId: editForm.id, productId: editForm.productId, qty: editForm.qty, paymentStatus: editForm.paymentStatus });
     }
     setSaving(false);
     setEditForm(null);
@@ -211,6 +211,25 @@ export default function Customers() {
                 </div>
               </div>
             )}
+            {form.productId && (
+              <div className="flex flex-col gap-2 pt-1">
+                <span className="text-[13px] font-semibold">Payment Status</span>
+                <div className="flex gap-2.5">
+                  {["Paid", "Partial", "Pending"].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setForm({ ...form, paymentStatus: s })}
+                      className={`flex-1 rounded-lg border py-2.5 text-[13px] font-semibold ${
+                        form.paymentStatus === s ? "border-[1.5px] border-teal bg-teal-soft text-teal" : "border-border"
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2.5">
@@ -252,6 +271,25 @@ export default function Customers() {
                   <div className="flex-[1.4] rounded-lg bg-surface-2 px-3.5 py-3">
                     <div className="text-[11px] font-semibold text-muted">TOTAL</div>
                     <div className="mt-0.5 font-display text-lg font-bold">{money(editTotal)}</div>
+                  </div>
+                </div>
+              )}
+              {editForm.productId && (
+                <div className="flex flex-col gap-2 pt-1">
+                  <span className="text-[13px] font-semibold">Payment Status</span>
+                  <div className="flex gap-2.5">
+                    {["Paid", "Partial", "Pending"].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, paymentStatus: s })}
+                        className={`flex-1 rounded-lg border py-2.5 text-[13px] font-semibold ${
+                          editForm.paymentStatus === s ? "border-[1.5px] border-teal bg-teal-soft text-teal" : "border-border"
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}

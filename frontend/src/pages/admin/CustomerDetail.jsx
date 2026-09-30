@@ -37,7 +37,7 @@ export default function CustomerDetail() {
   const initials = customer.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
   function openEdit() {
-    setEditForm({ name: customer.name, contact: customer.contact, phone: customer.phone, address: customer.address, productId: "", qty: 1 });
+    setEditForm({ name: customer.name, contact: customer.contact, phone: customer.phone, address: customer.address, productId: "", qty: 1, paymentStatus: "Paid" });
   }
 
   async function handleEditSave(e) {
@@ -45,7 +45,7 @@ export default function CustomerDetail() {
     setSaving(true);
     await updateCustomer(customer.id, editForm);
     if (editForm.productId && Number(editForm.qty) > 0) {
-      await createSale({ customerId: customer.id, productId: editForm.productId, qty: editForm.qty, paymentStatus: "Pending" });
+      await createSale({ customerId: customer.id, productId: editForm.productId, qty: editForm.qty, paymentStatus: editForm.paymentStatus });
     }
     setSaving(false);
     setEditForm(null);
@@ -210,6 +210,25 @@ export default function CustomerDetail() {
                     <div className="flex-[1.4] rounded-lg bg-surface-2 px-3.5 py-3">
                       <div className="text-[11px] font-semibold text-muted">TOTAL</div>
                       <div className="mt-0.5 font-display text-lg font-bold">{money(editTotal)}</div>
+                    </div>
+                  </div>
+                )}
+                {editForm.productId && (
+                  <div className="flex flex-col gap-2 pt-1">
+                    <span className="text-[13px] font-semibold">Payment Status</span>
+                    <div className="flex gap-2.5">
+                      {["Paid", "Partial", "Pending"].map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setEditForm({ ...editForm, paymentStatus: s })}
+                          className={`flex-1 rounded-lg border py-2.5 text-[13px] font-semibold ${
+                            editForm.paymentStatus === s ? "border-[1.5px] border-teal bg-teal-soft text-teal" : "border-border"
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}
