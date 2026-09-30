@@ -17,6 +17,7 @@ export default function Payments() {
   const [method, setMethod] = useState("Bank Transfer");
   const [editPayment, setEditPayment] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
 
   const rows = sales.filter((s) => tab === "All" || salePaymentStatus(s) === tab);
   const totalReceived = payments.reduce((s, p) => s + p.amount, 0);
@@ -32,18 +33,34 @@ export default function Payments() {
     setActiveSaleId(saleId);
     const sale = sales.find((s) => s.id === saleId);
     setAmount(String(saleTotal(sale) - salePaidAmount(saleId)));
+    setJustSaved(false);
     setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+    setJustSaved(false);
   }
 
   async function handleSave(e) {
     e.preventDefault();
     const amt = Number(amount) || 0;
-    if (amt > 0 && activeSaleId) {
-      setSaving(true);
-      await createPayment({ saleId: activeSaleId, amount: amt, method });
-      setSaving(false);
+    if (amt <= 0 || !activeSaleId) return;
+    setSaving(true);
+    await createPayment({ saleId: activeSaleId, amount: amt, method });
+    setSaving(false);
+    // Fully paid - nothing left to do, close. Still a balance (a partial
+    // payment, or a follow-up on one) - stay open with what's left
+    // pre-filled, so correcting or adding a second payment doesn't mean
+    // reopening this and re-picking the sale.
+    const remaining = saleTotal(activeSale) - (salePaidAmount(activeSaleId) + amt);
+    if (remaining <= 0) {
+      setModalOpen(false);
+    } else {
+      setAmount(String(remaining));
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 4000);
     }
-    setModalOpen(false);
   }
 
   function openEditPayment(saleId) {
@@ -162,9 +179,15 @@ export default function Payments() {
         {rows.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-8 text-center text-sm text-muted">No matching sales.</div>}
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Record Payment">
+      <Modal open={modalOpen} onClose={closeModal} title="Record Payment">
         {activeSale && (
           <form onSubmit={handleSave} className="flex flex-col gap-4">
+            {justSaved && (
+              <div className="flex items-center gap-2 rounded-lg border-[1.5px] border-teal bg-teal-soft px-3.5 py-2.5 text-[13px] font-semibold text-teal">
+                <Icon name="check" className="h-4 w-4" strokeWidth={2.4} />
+                Payment saved — balance still due is pre-filled below.
+              </div>
+            )}
             <Field label="Customer / Sale Reference" disabled value={`${customerById(activeSale.customerId)?.name} — ${activeSale.id}`} />
             <div className="flex flex-col gap-3.5 rounded-xl bg-surface-2 p-4 sm:flex-row">
               <div className="flex-1">
@@ -192,7 +215,7 @@ export default function Payments() {
               </label>
             </div>
             <div className="flex gap-2.5">
-              <button type="button" onClick={() => setModalOpen(false)} className="btn-ghost flex-1">Cancel</button>
+              <button type="button" onClick={closeModal} className="btn-ghost flex-1">{justSaved ? "Done" : "Cancel"}</button>
               <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save Payment"}</button>
             </div>
           </form>

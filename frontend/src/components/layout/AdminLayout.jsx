@@ -14,8 +14,8 @@ const FINANCE_CHILDREN = [
   { to: "/daybook", label: "Day Book", icon: "cash" },
   { to: "/received-payments?direction=received", label: "Received", icon: "arrowDown" },
   { to: "/received-payments?direction=payment_out", label: "Payment Out", icon: "arrowUp" },
-  { to: "/purchases", label: "Purchase", icon: "cart" },
-  { to: "/expenses", label: "Expenses", icon: "arrowUp" },
+  { to: "/purchases?add=1", label: "Purchase", icon: "cart" },
+  { to: "/expenses?add=1", label: "Expenses", icon: "arrowUp" },
   { to: "/bank-accounts", label: "Bank Accounts", icon: "cashBank" },
 ];
 const FINANCE_PATHS = ["/finance", "/daybook", "/purchases", "/expenses", "/received-payments", "/bank-accounts"];

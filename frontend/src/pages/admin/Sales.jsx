@@ -14,6 +14,7 @@ export default function Sales() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ customerId: "", productId: "", qty: 1, status: "Paid", partialAmount: "" });
   const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
 
   const shown = sales.filter((s) => tab === "All Sales" || salePaymentStatus(s) === tab);
   const product = productById(form.productId);
@@ -22,7 +23,13 @@ export default function Sales() {
 
   function openModal() {
     setForm({ customerId: customers[0]?.id || "", productId: products[0]?.id || "", qty: 1, status: "Paid", partialAmount: "" });
+    setJustSaved(false);
     setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+    setJustSaved(false);
   }
 
   function pickStatus(s) {
@@ -34,7 +41,13 @@ export default function Sales() {
     setSaving(true);
     await createSale({ customerId: form.customerId, productId: form.productId, qty: form.qty, paymentStatus: form.status, partialAmount: form.partialAmount });
     setSaving(false);
-    setModalOpen(false);
+    // Stays open - ringing up several orders in a row shouldn't mean
+    // reopening this every time. Payment status carries over (most walk-ins
+    // in a session pay the same way); customer/product/qty reset since the
+    // next sale is rarely the same one.
+    setForm((f) => ({ customerId: customers[0]?.id || "", productId: products[0]?.id || "", qty: 1, status: f.status, partialAmount: "" }));
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 4000);
   }
 
   if (loading) return <div className="p-8 text-sm text-muted">Loading sales…</div>;
@@ -104,8 +117,14 @@ export default function Sales() {
         {shown.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-8 text-center text-sm text-muted">No sales match.</div>}
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Record New Sale" width="max-w-[500px]">
+      <Modal open={modalOpen} onClose={closeModal} title="Record New Sale" width="max-w-[500px]">
         <form onSubmit={handleSave} className="flex flex-col gap-4">
+          {justSaved && (
+            <div className="flex items-center gap-2 rounded-lg border-[1.5px] border-teal bg-teal-soft px-3.5 py-2.5 text-[13px] font-semibold text-teal">
+              <Icon name="check" className="h-4 w-4" strokeWidth={2.4} />
+              Sale saved — add another below, or close when done.
+            </div>
+          )}
           <label className="flex flex-col gap-2">
             <span className="text-[13px] font-semibold">Customer</span>
             <select className="field" value={form.customerId} onChange={(e) => setForm({ ...form, customerId: e.target.value })}>
@@ -165,8 +184,8 @@ export default function Sales() {
             Inventory will update automatically — {Math.max(available - form.qty, 0)} units will remain after this sale.
           </div>
           <div className="flex gap-2.5">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-ghost flex-1">Cancel</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Confirm Sale"}</button>
+            <button type="button" onClick={closeModal} className="btn-ghost flex-1">Done</button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save & Add Another"}</button>
           </div>
         </form>
       </Modal>

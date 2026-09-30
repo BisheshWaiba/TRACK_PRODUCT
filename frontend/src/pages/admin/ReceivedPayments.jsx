@@ -20,6 +20,7 @@ export default function ReceivedPayments() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(() => blankForm("received", nextReceiptNo()));
   const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
 
   // Reached from the Finance hub's "Received"/"Payment Out" shortcuts with
   // ?direction=received|payment_out - open straight into that direction.
@@ -39,7 +40,13 @@ export default function ReceivedPayments() {
 
   function openModal(direction) {
     setForm(blankForm(direction, direction === "received" ? nextReceiptNo() : nextPaymentNo()));
+    setJustSaved(false);
     setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+    setJustSaved(false);
   }
 
   function setDirection(direction) {
@@ -69,7 +76,19 @@ export default function ReceivedPayments() {
       };
       if (form.direction === "received") await recordReceipt({ ...payload, customerId: partyId });
       else await recordPayout({ ...payload, vendorId: partyId });
-      setModalOpen(false);
+      // Stays open for the next one - the spec's own multi-row table idea
+      // (one date/method/direction, several people and amounts) for a
+      // sidebar app: same direction, date and method, next number in the
+      // sequence, party/amount/note cleared. nextReceiptNo()/nextPaymentNo()
+      // aren't safe to call here - they read customerEntries/vendorEntries
+      // from this render's closure, which is still the pre-save list even
+      // though the save just refreshed it - so the number after the one
+      // just used is worked out directly instead.
+      const digits = Number(String(form.no).replace(/\D/g, ""));
+      const nextNo = digits > 0 ? String(digits + 1).padStart(3, "0") : (form.direction === "received" ? nextReceiptNo() : nextPaymentNo());
+      setForm({ direction: form.direction, partyName: "", partyId: null, no: nextNo, noTouched: false, amount: "", date: form.date, note: "", bankAccountId: form.bankAccountId });
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 4000);
     } finally {
       setSaving(false);
     }
@@ -129,8 +148,14 @@ export default function ReceivedPayments() {
         {feed.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-8 text-center text-sm text-muted">Nothing recorded yet.</div>}
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={form.direction === "received" ? "Record Received" : "Record Payment Out"}>
+      <Modal open={modalOpen} onClose={closeModal} title={form.direction === "received" ? "Record Received" : "Record Payment Out"}>
         <form onSubmit={handleSave} className="flex flex-col gap-4">
+          {justSaved && (
+            <div className="flex items-center gap-2 rounded-lg border-[1.5px] border-teal bg-teal-soft px-3.5 py-2.5 text-[13px] font-semibold text-teal">
+              <Icon name="check" className="h-4 w-4" strokeWidth={2.4} />
+              Saved — add another below, or close when done.
+            </div>
+          )}
           <datalist id="party-names">
             {customers.map((c) => <option key={c.id} value={c.name} />)}
           </datalist>
@@ -166,8 +191,8 @@ export default function ReceivedPayments() {
           <Field label="Note" placeholder="Optional" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
 
           <div className="flex gap-2.5">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-ghost flex-1">Cancel</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save"}</button>
+            <button type="button" onClick={closeModal} className="btn-ghost flex-1">Done</button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save & Add Another"}</button>
           </div>
         </form>
       </Modal>

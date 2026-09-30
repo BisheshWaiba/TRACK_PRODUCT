@@ -21,6 +21,8 @@ export default function BankAccounts() {
   const [activityFor, setActivityFor] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [accountJustSaved, setAccountJustSaved] = useState(false);
+  const [transferJustSaved, setTransferJustSaved] = useState(false);
 
   if (loading) return <div className="p-8 text-sm text-muted">Loading bank accounts…</div>;
 
@@ -37,13 +39,24 @@ export default function BankAccounts() {
           name: payload.name, bank_name: payload.bankName, account_number: payload.accountNumber,
           account_holder_name: payload.accountHolderName, address: payload.address,
         });
+        setAccountForm(null);
       } else {
         await createBankAccount(payload);
+        // Stays open only when adding new ones in a row, not while editing
+        // an existing one - opening several accounts at setup time
+        // shouldn't mean reopening this each time.
+        setAccountForm(blankAccountForm());
+        setAccountJustSaved(true);
+        setTimeout(() => setAccountJustSaved(false), 4000);
       }
-      setAccountForm(null);
     } finally {
       setSaving(false);
     }
+  }
+
+  function closeAccountModal() {
+    setAccountForm(null);
+    setAccountJustSaved(false);
   }
 
   async function handleDelete(id) {
@@ -68,11 +81,19 @@ export default function BankAccounts() {
         toAccountId: transferForm.toAccountId || null,
         amount, date: transferForm.date, note: transferForm.note || null,
       });
-      setTransferOpen(false);
-      setTransferForm(blankTransferForm());
+      // Stays open - from/to and date carry over (a batch of transfers is
+      // usually the same two accounts, same day); amount/note reset.
+      setTransferForm((f) => ({ ...blankTransferForm(), fromAccountId: f.fromAccountId, toAccountId: f.toAccountId, date: f.date }));
+      setTransferJustSaved(true);
+      setTimeout(() => setTransferJustSaved(false), 4000);
     } finally {
       setSaving(false);
     }
+  }
+
+  function closeTransferModal() {
+    setTransferOpen(false);
+    setTransferJustSaved(false);
   }
 
   function accountLabel(id) {
@@ -84,8 +105,8 @@ export default function BankAccounts() {
     <div className="flex flex-col gap-5">
       <FinanceCrumb label="Bank Accounts" />
       <div className="flex justify-end gap-2.5">
-        <button onClick={() => setTransferOpen(true)} className="btn-ghost">Record Transfer</button>
-        <button onClick={() => setAccountForm(blankAccountForm())} className="btn-primary">
+        <button onClick={() => { setTransferJustSaved(false); setTransferOpen(true); }} className="btn-ghost">Record Transfer</button>
+        <button onClick={() => { setAccountJustSaved(false); setAccountForm(blankAccountForm()); }} className="btn-primary">
           <Icon name="plus" className="h-[15px] w-[15px]" strokeWidth={2.2} />
           Add Account
         </button>
@@ -136,9 +157,15 @@ export default function BankAccounts() {
         </div>
       </div>
 
-      <Modal open={!!accountForm} onClose={() => setAccountForm(null)} title={accountForm?.id ? "Edit Account" : "Add Bank Account"}>
+      <Modal open={!!accountForm} onClose={closeAccountModal} title={accountForm?.id ? "Edit Account" : "Add Bank Account"}>
         {accountForm && (
           <form onSubmit={handleAccountSave} className="flex flex-col gap-4">
+            {accountJustSaved && (
+              <div className="flex items-center gap-2 rounded-lg border-[1.5px] border-teal bg-teal-soft px-3.5 py-2.5 text-[13px] font-semibold text-teal">
+                <Icon name="check" className="h-4 w-4" strokeWidth={2.4} />
+                Account saved — add another below, or close when done.
+              </div>
+            )}
             <Field label="Account Name" placeholder="e.g. Nabil Business" value={accountForm.name} onChange={(e) => setAccountForm({ ...accountForm, name: e.target.value })} required />
             <div className="flex flex-col gap-3.5 sm:flex-row">
               <Field label="Bank Name" className="flex-1" value={accountForm.bankName} onChange={(e) => setAccountForm({ ...accountForm, bankName: e.target.value })} />
@@ -147,15 +174,23 @@ export default function BankAccounts() {
             <Field label="Account Holder" value={accountForm.accountHolderName} onChange={(e) => setAccountForm({ ...accountForm, accountHolderName: e.target.value })} />
             <Field label="Branch / Address" value={accountForm.address} onChange={(e) => setAccountForm({ ...accountForm, address: e.target.value })} />
             <div className="flex gap-2.5">
-              <button type="button" onClick={() => setAccountForm(null)} className="btn-ghost flex-1">Cancel</button>
-              <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save Account"}</button>
+              <button type="button" onClick={closeAccountModal} className="btn-ghost flex-1">{accountForm.id ? "Cancel" : "Done"}</button>
+              <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">
+                {saving ? "Saving…" : accountForm.id ? "Save Changes" : "Save & Add Another"}
+              </button>
             </div>
           </form>
         )}
       </Modal>
 
-      <Modal open={transferOpen} onClose={() => setTransferOpen(false)} title="Record Transfer">
+      <Modal open={transferOpen} onClose={closeTransferModal} title="Record Transfer">
         <form onSubmit={handleTransfer} className="flex flex-col gap-4">
+          {transferJustSaved && (
+            <div className="flex items-center gap-2 rounded-lg border-[1.5px] border-teal bg-teal-soft px-3.5 py-2.5 text-[13px] font-semibold text-teal">
+              <Icon name="check" className="h-4 w-4" strokeWidth={2.4} />
+              Transfer saved — add another below, or close when done.
+            </div>
+          )}
           <div className="flex flex-col gap-3.5 sm:flex-row">
             <label className="flex flex-1 flex-col gap-2">
               <span className="text-[13px] font-semibold">From</span>
@@ -178,8 +213,8 @@ export default function BankAccounts() {
           </div>
           <Field label="Note" placeholder="Optional" value={transferForm.note} onChange={(e) => setTransferForm({ ...transferForm, note: e.target.value })} />
           <div className="flex gap-2.5">
-            <button type="button" onClick={() => setTransferOpen(false)} className="btn-ghost flex-1">Cancel</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save Transfer"}</button>
+            <button type="button" onClick={closeTransferModal} className="btn-ghost flex-1">Done</button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save & Add Another"}</button>
           </div>
         </form>
       </Modal>

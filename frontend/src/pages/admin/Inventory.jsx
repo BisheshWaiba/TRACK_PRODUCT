@@ -11,13 +11,20 @@ export default function Inventory() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ productId: "", type: "in", qty: "", reference: "" });
   const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
 
   const totals = dashboardTotals();
   const today = new Date().toISOString().slice(0, 10);
 
   function openModal() {
     setForm({ productId: products[0]?.id || "", type: "in", qty: "", reference: "" });
+    setJustSaved(false);
     setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+    setJustSaved(false);
   }
 
   async function handleSave(e) {
@@ -27,7 +34,11 @@ export default function Inventory() {
     setSaving(true);
     await createStockMovement(form);
     setSaving(false);
-    setModalOpen(false);
+    // Stays open - a stock take or a multi-item delivery means several
+    // movements in a row, usually the same type and reason each time.
+    setForm((f) => ({ ...f, qty: "" }));
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 4000);
   }
 
   if (loading) return <div className="p-8 text-sm text-muted">Loading inventory…</div>;
@@ -131,8 +142,14 @@ export default function Inventory() {
         </div>
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Record Stock Movement">
+      <Modal open={modalOpen} onClose={closeModal} title="Record Stock Movement">
         <form onSubmit={handleSave} className="flex flex-col gap-4">
+          {justSaved && (
+            <div className="flex items-center gap-2 rounded-lg border-[1.5px] border-teal bg-teal-soft px-3.5 py-2.5 text-[13px] font-semibold text-teal">
+              <Icon name="check" className="h-4 w-4" strokeWidth={2.4} />
+              Movement saved — add another below, or close when done.
+            </div>
+          )}
           <label className="flex flex-col gap-2">
             <span className="text-[13px] font-semibold">Product</span>
             <select className="field" value={form.productId} onChange={(e) => setForm({ ...form, productId: e.target.value })}>
@@ -157,8 +174,8 @@ export default function Inventory() {
           </div>
           <Field label="Reference / Reason" placeholder="Supplier restock #RS-119" value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} />
           <div className="flex gap-2.5">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-ghost flex-1">Cancel</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save Movement"}</button>
+            <button type="button" onClick={closeModal} className="btn-ghost flex-1">Done</button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save & Add Another"}</button>
           </div>
         </form>
       </Modal>

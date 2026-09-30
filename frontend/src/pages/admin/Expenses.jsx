@@ -17,6 +17,7 @@ export default function Expenses() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(blankForm);
   const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [renaming, setRenaming] = useState(null);
@@ -26,11 +27,17 @@ export default function Expenses() {
   useEffect(() => {
     if (searchParams.get("add") === "1") {
       setForm(blankForm());
+      setJustSaved(false);
       setModalOpen(true);
       setSearchParams({}, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function closeModal() {
+    setModalOpen(false);
+    setJustSaved(false);
+  }
 
   async function removeCategory(id) {
     setCategoryError("");
@@ -64,8 +71,12 @@ export default function Expenses() {
         bankAccountId: form.bankAccountId || null,
         note: form.note || null,
       });
-      setModalOpen(false);
-      setForm(blankForm());
+      // Stays open - a batch of receipts is usually the same category,
+      // date and payment method, one after another. Payee/amount/note
+      // reset since those are what actually change per receipt.
+      setForm((f) => ({ ...blankForm(), expenseCategoryId: f.expenseCategoryId, date: f.date, bankAccountId: f.bankAccountId }));
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 4000);
     } finally {
       setSaving(false);
     }
@@ -89,7 +100,7 @@ export default function Expenses() {
       <FinanceCrumb label="Expenses" />
       <div className="flex justify-end gap-2.5">
         <button onClick={() => setManageOpen(true)} className="btn-ghost">Manage Categories</button>
-        <button onClick={() => { setForm(blankForm()); setModalOpen(true); }} className="btn-primary">
+        <button onClick={() => { setForm(blankForm()); setJustSaved(false); setModalOpen(true); }} className="btn-primary">
           <Icon name="plus" className="h-[15px] w-[15px]" strokeWidth={2.2} />
           New Expense
         </button>
@@ -124,8 +135,14 @@ export default function Expenses() {
         {expenses.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-8 text-center text-sm text-muted">No expenses recorded yet.</div>}
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="New Expense">
+      <Modal open={modalOpen} onClose={closeModal} title="New Expense">
         <form onSubmit={handleSave} className="flex flex-col gap-4">
+          {justSaved && (
+            <div className="flex items-center gap-2 rounded-lg border-[1.5px] border-teal bg-teal-soft px-3.5 py-2.5 text-[13px] font-semibold text-teal">
+              <Icon name="check" className="h-4 w-4" strokeWidth={2.4} />
+              Expense saved — add another below, or close when done.
+            </div>
+          )}
           <Field label="Payee" placeholder="e.g. Nepal Electricity Authority" value={form.partyName} onChange={(e) => setForm({ ...form, partyName: e.target.value })} />
           <div className="flex items-end gap-2.5">
             <label className="flex flex-1 flex-col gap-2">
@@ -152,8 +169,8 @@ export default function Expenses() {
           </label>
           <Field label="Note" placeholder="Optional" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
           <div className="flex gap-2.5">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-ghost flex-1">Cancel</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save Expense"}</button>
+            <button type="button" onClick={closeModal} className="btn-ghost flex-1">Done</button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save & Add Another"}</button>
           </div>
         </form>
       </Modal>

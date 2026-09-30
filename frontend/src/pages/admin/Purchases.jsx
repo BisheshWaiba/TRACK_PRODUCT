@@ -23,6 +23,7 @@ export default function Purchases() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(blankForm);
   const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
 
   // Reached from the Finance hub's "Purchase" shortcut with ?add=1 - jump
   // straight into the form instead of making a second click land on it.
@@ -40,7 +41,13 @@ export default function Purchases() {
 
   function openModal() {
     setForm(blankForm());
+    setJustSaved(false);
     setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+    setJustSaved(false);
   }
 
   function updateItem(key, patch) {
@@ -118,8 +125,14 @@ export default function Purchases() {
         vatAmount: vat,
         items: validItems.map((it) => ({ description: it.name.trim(), qty: it.qty, rate: it.rate, amount: it.qty * it.rate })),
       });
-      setModalOpen(false);
-      setForm(blankForm());
+      // Stays open instead of closing - entering a stack of paper bills
+      // one after another shouldn't mean re-opening this modal every time.
+      // Bill date carries over (a batch is usually all from today); the
+      // supplier, items and bill number reset since the next bill is
+      // rarely the same one.
+      setForm({ ...blankForm(), billDate: form.billDate });
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 4000);
     } finally {
       setSaving(false);
     }
@@ -169,8 +182,14 @@ export default function Purchases() {
         {purchases.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-8 text-center text-sm text-muted">No purchases recorded yet.</div>}
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="New Purchase" width="max-w-[640px]">
+      <Modal open={modalOpen} onClose={closeModal} title="New Purchase" width="max-w-[640px]">
         <form onSubmit={handleSave} className="flex flex-col gap-4">
+          {justSaved && (
+            <div className="flex items-center gap-2 rounded-lg border-[1.5px] border-teal bg-teal-soft px-3.5 py-2.5 text-[13px] font-semibold text-teal">
+              <Icon name="check" className="h-4 w-4" strokeWidth={2.4} />
+              Purchase saved — add another below, or close when done.
+            </div>
+          )}
           <datalist id="product-names">
             {products.map((p) => <option key={p.id} value={p.name} />)}
           </datalist>
@@ -244,9 +263,9 @@ export default function Purchases() {
           </div>
 
           <div className="flex gap-2.5">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-ghost flex-1">Cancel</button>
+            <button type="button" onClick={closeModal} className="btn-ghost flex-1">Done</button>
             <button type="submit" disabled={saving || grandTotal <= 0} className="btn-primary flex-1 disabled:opacity-60">
-              {saving ? "Saving…" : "Save Purchase"}
+              {saving ? "Saving…" : "Save & Add Another"}
             </button>
           </div>
         </form>

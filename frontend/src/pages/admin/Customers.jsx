@@ -20,6 +20,7 @@ export default function Customers() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [justSaved, setJustSaved] = useState(false);
 
   const shown = customers.filter(
     (c) => c.name.toLowerCase().includes(query.toLowerCase()) || c.contact.toLowerCase().includes(query.toLowerCase())
@@ -33,6 +34,11 @@ export default function Customers() {
   const editAvailable = editProduct ? editProduct.stockTotal - editProduct.stockTaken : 0;
   const editTotal = editProduct ? editProduct.price * editForm.qty : 0;
 
+  function closeModal() {
+    setModalOpen(false);
+    setJustSaved(false);
+  }
+
   async function handleSave(e) {
     e.preventDefault();
     setSaving(true);
@@ -41,8 +47,11 @@ export default function Customers() {
       await createSale({ customerId: newId, productId: form.productId, qty: form.qty, paymentStatus: form.paymentStatus, partialAmount: form.partialAmount });
     }
     setSaving(false);
+    // Stays open - onboarding several new customers in one sitting
+    // shouldn't mean reopening this every time.
     setForm(emptyForm);
-    setModalOpen(false);
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 4000);
   }
 
   function openEdit(e, c) {
@@ -95,7 +104,7 @@ export default function Customers() {
           <Icon name="search" className="h-4 w-4 text-muted" strokeWidth={2} />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search customers…" className="flex-1 border-none bg-transparent text-sm outline-none" />
         </div>
-        <button onClick={() => setModalOpen(true)} className="btn-primary">
+        <button onClick={() => { setJustSaved(false); setModalOpen(true); }} className="btn-primary">
           <Icon name="plus" className="h-[15px] w-[15px]" strokeWidth={2.2} />
           Add Customer
         </button>
@@ -180,8 +189,14 @@ export default function Customers() {
         {shown.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-8 text-center text-sm text-muted">No customers found.</div>}
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Customer" width="max-w-[460px]">
+      <Modal open={modalOpen} onClose={closeModal} title="Add Customer" width="max-w-[460px]">
         <form onSubmit={handleSave} className="flex flex-col gap-4">
+          {justSaved && (
+            <div className="flex items-center gap-2 rounded-lg border-[1.5px] border-teal bg-teal-soft px-3.5 py-2.5 text-[13px] font-semibold text-teal">
+              <Icon name="check" className="h-4 w-4" strokeWidth={2.4} />
+              Customer saved — add another below, or close when done.
+            </div>
+          )}
           <div className="flex flex-col gap-3.5 sm:flex-row">
             <Field label="Business Name" placeholder="Annapurna Store" className="flex-1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             <Field label="Contact Person" placeholder="Krishna Bhattarai" className="flex-1" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} required />
@@ -245,8 +260,8 @@ export default function Customers() {
           </div>
 
           <div className="flex gap-2.5">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-ghost flex-1">Cancel</button>
-            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save Customer"}</button>
+            <button type="button" onClick={closeModal} className="btn-ghost flex-1">Done</button>
+            <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save & Add Another"}</button>
           </div>
         </form>
       </Modal>
