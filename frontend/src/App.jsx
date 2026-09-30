@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { DataProvider } from "./context/DataContext";
 import { NotificationProvider } from "./context/NotificationContext";
+import { FinanceProvider } from "./context/FinanceContext";
 import RequireAuth from "./components/RequireAuth";
 import AdminLayout from "./components/layout/AdminLayout";
 
@@ -13,6 +14,7 @@ import Customers from "./pages/admin/Customers";
 import CustomerDetail from "./pages/admin/CustomerDetail";
 import Sales from "./pages/admin/Sales";
 import Payments from "./pages/admin/Payments";
+import DayBook from "./pages/admin/DayBook";
 import Reports from "./pages/admin/Reports";
 import Account from "./pages/admin/Account";
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -39,9 +41,11 @@ export default function App() {
             element={
               <RequireAuth>
                 <DataProvider>
-                  <NotificationProvider>
-                    <AdminLayout />
-                  </NotificationProvider>
+                  <FinanceProvider>
+                    <NotificationProvider>
+                      <AdminLayout />
+                    </NotificationProvider>
+                  </FinanceProvider>
                 </DataProvider>
               </RequireAuth>
             }
@@ -53,6 +57,7 @@ export default function App() {
             <Route path="customers/:id" element={<CustomerDetail />} />
             <Route path="sales" element={<Sales />} />
             <Route path="payments" element={<Payments />} />
+            <Route path="daybook" element={<DayBook />} />
             <Route path="reports" element={<Reports />} />
             <Route path="account" element={<Account />} />
           </Route>
