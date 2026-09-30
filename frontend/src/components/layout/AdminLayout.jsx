@@ -98,9 +98,9 @@ export default function AdminLayout() {
           <span className="font-display text-[19px] font-bold">{title}</span>
           <div className="flex items-center gap-4">
             <Icon name="bell" className="h-[19px] w-[19px] text-ink-soft" strokeWidth={1.7} />
-            <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-surface-2">
+            <Link to="/account" title="Account" className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-surface-2 hover:bg-border">
               <Icon name="user" className="h-[17px] w-[17px] text-ink-soft" strokeWidth={1.7} />
-            </div>
+            </Link>
           </div>
         </div>
         <div className="flex-1 p-8">
