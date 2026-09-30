@@ -45,7 +45,7 @@ export default function Sales() {
 
       <div className="flex gap-2">
         {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4.5 py-2 text-[13.5px] font-semibold transition-colors ${tab === t ? "bg-ink text-white" : "bg-surface-2 hover:bg-border"}`}>
+          <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-2 text-[13.5px] font-semibold transition-colors ${tab === t ? "bg-ink text-white" : "bg-surface-2 hover:bg-border"}`}>
             {t}
           </button>
         ))}
