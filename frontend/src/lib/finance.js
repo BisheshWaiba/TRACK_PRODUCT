@@ -195,6 +195,91 @@ export function receivedAndPaid(data, range = {}) {
   return { received, paid };
 }
 
+// Same definitions as receivedAndPaid, but the rows themselves rather than
+// the sum - the Totals report lists these, each linking back to where it
+// came from, instead of only showing a figure nobody can trace.
+export function receivedAndPaidEntries(data, range = {}) {
+  const { transactions = [], customerEntries = [], vendorEntries = [] } = data;
+  const inRange = (row) => {
+    const d = onDate(row);
+    return (!range.from || d >= range.from) && (!range.to || d <= range.to);
+  };
+  const entries = [];
+  for (const t of transactions) {
+    if (!inRange(t)) continue;
+    if (t.type === "expense") entries.push({ id: t.id, date: onDate(t), direction: "paid", label: t.partyName || "Expense", amount: t.amount, kind: "expense" });
+    if (settledOnSpot(t)) {
+      if (t.type === "sale") entries.push({ id: t.id, date: onDate(t), direction: "received", label: t.partyName || "Walk-in sale", amount: t.amount, kind: "sale" });
+      else entries.push({ id: t.id, date: onDate(t), direction: "paid", label: t.partyName || "Walk-in purchase", amount: t.amount, kind: "purchase" });
+    }
+  }
+  for (const e of customerEntries) {
+    if (!inRange(e)) continue;
+    if (e.entryType === "credit") entries.push({ id: e.id, date: onDate(e), direction: "received", label: "Received", amount: e.amount, kind: "customer", partyId: e.customerId });
+    else if (e.source === "manual") entries.push({ id: e.id, date: onDate(e), direction: "paid", label: "Refund", amount: e.amount, kind: "customer", partyId: e.customerId });
+  }
+  for (const e of vendorEntries) {
+    if (!inRange(e)) continue;
+    if (e.entryType === "credit") entries.push({ id: e.id, date: onDate(e), direction: "paid", label: "Paid supplier", amount: e.amount, kind: "supplier", partyId: e.supplierId || e.vendorId });
+  }
+  return entries.sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+// ---------------------------------------------------------------------
+// Cash flow over time - in vs out, bucketed by day or by month. Same
+// definitions as receivedAndPaid, bucketed instead of summed once.
+// "Week" buckets the last 7 individual days (not an 8-week rolling
+// aggregate) - checking cashflow means seeing each day's activity, not
+// one bar per calendar week.
+// ---------------------------------------------------------------------
+export function cashflow(data, granularity = "week", count = granularity === "week" ? 7 : 6) {
+  const { transactions = [], customerEntries = [], vendorEntries = [] } = data;
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const buckets = [];
+  if (granularity === "week") {
+    for (let i = count - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      buckets.push({ label: `${pad(d.getMonth() + 1)}/${pad(d.getDate())}`, from: key, to: key, in: 0, out: 0 });
+    }
+  } else {
+    for (let i = count - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      buckets.push({
+        label: d.toLocaleDateString("en", { month: "short" }),
+        from: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`,
+        to: `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`,
+        in: 0, out: 0,
+      });
+    }
+  }
+  const bucketFor = (date) => buckets.find((b) => date >= b.from && date <= b.to);
+
+  for (const t of transactions) {
+    const b = bucketFor(onDate(t));
+    if (!b) continue;
+    if (t.type === "expense") b.out += t.amount;
+    if (settledOnSpot(t)) {
+      if (t.type === "sale") b.in += t.amount;
+      else b.out += t.amount;
+    }
+  }
+  for (const e of customerEntries) {
+    const b = bucketFor(onDate(e));
+    if (!b) continue;
+    if (e.entryType === "credit") b.in += e.amount;
+    else if (e.source === "manual") b.out += e.amount;
+  }
+  for (const e of vendorEntries) {
+    const b = bucketFor(onDate(e));
+    if (!b) continue;
+    if (e.entryType === "credit") b.out += e.amount;
+  }
+  return buckets;
+}
+
 // ---------------------------------------------------------------------
 // Profit and loss
 // ---------------------------------------------------------------------
@@ -236,16 +321,19 @@ export function profitAndLoss({ sales = [], transactions = [] }, range = {}) {
 // for whatever was actually collected - as a payment. Showing the
 // mirrored ledger debit as well would count it twice, so it is skipped.
 export function dayBook(data, day) {
-  const { transactions = [], customerEntries = [], vendorEntries = [], transfers = [], accounts = [], parties = [], suppliers = [] } = data;
+  const { transactions = [], customerEntries = [], vendorEntries = [], transfers = [], accounts = [], parties = [], suppliers = [], invoices = [] } = data;
 
   const partyName = new Map([...parties, ...suppliers].map((p) => [p.id, p.name]));
   const accountName = new Map(accounts.map((a) => [a.id, a.name]));
+  const invoiceById = new Map(invoices.map((i) => [i.id, i]));
   const via = (id) => (id ? accountName.get(id) || "Bank" : "Cash");
   const onDay = (row) => onDate(row) === day;
 
   const opening = accountBalances(data, day).total;
   const rows = [];
-  const push = (row) => rows.push({ billed: null, cashIn: null, cashOut: null, balance: null, ...row });
+  // Invoice is the value before discount and VAT (spec 3.1); a legacy
+  // sale never had either, so it equals the billed amount.
+  const push = (row) => rows.push({ billed: null, cashIn: null, cashOut: null, balance: null, discount: null, invoice: row.billed ?? null, ...row });
 
   for (const e of customerEntries) {
     if (!onDay(e)) continue;
@@ -264,13 +352,20 @@ export function dayBook(data, day) {
         sub: [via(e.bankAccountId), e.note].filter(Boolean).join(" · "),
         cashOut: e.amount,
       });
-    } else if (e.sourceType === "sale") {
-      // The sale itself. Billed, not collected - no cash, no balance.
+    } else if (e.sourceType === "sale" || e.sourceType === "invoice") {
+      // The sale/invoice itself. Billed, not collected - no cash, no
+      // balance. A multi-product invoice carries its own discount/VAT;
+      // a legacy single-product sale never had either.
+      const inv = e.sourceType === "invoice" ? invoiceById.get(e.sourceId) : null;
+      const discount = inv?.discountAmount || 0;
+      const vat = inv?.vatAmount || 0;
       push({
         id: e.id, kind: "sale", at: e.createdAt,
         title: "Sale to " + (partyName.get(e.customerId) || "customer"),
         sub: e.sourceId || "",
         billed: e.amount,
+        discount: discount || null,
+        invoice: e.amount + discount - vat,
         locked: true,
       });
     }
@@ -299,6 +394,8 @@ export function dayBook(data, day) {
       // An expense is cash; a bill is a debt until it is settled - unless
       // there is nobody to settle with, in which case it moved money now.
       billed: isExpense ? null : t.amount,
+      discount: !isExpense ? t.discountAmount || null : null,
+      invoice: !isExpense ? t.amount + (t.discountAmount || 0) - (t.vatAmount || 0) : null,
       cashIn: !isExpense && settledOnSpot(t) && t.type === "sale" ? t.amount : null,
       cashOut: isExpense ? t.amount : settledOnSpot(t) && t.type === "purchase" ? t.amount : null,
     });

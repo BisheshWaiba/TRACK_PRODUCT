@@ -51,6 +51,11 @@ export default function Expenses() {
   if (loading) return <div className="p-8 text-sm text-muted">Loading expenses…</div>;
 
   const expenses = transactions.filter((t) => t.type === "expense");
+  // Remembered payee names for the datalist below - drawn straight from
+  // expense history rather than the unused finance_items table, since a
+  // separate "remembered names" table would just duplicate what this
+  // list already is for free.
+  const pastPayees = [...new Set(expenses.map((t) => t.partyName).filter(Boolean))].sort();
 
   function categoryName(id) {
     return expenseCategories.find((c) => c.id === id)?.name || "Uncategorised";
@@ -143,7 +148,10 @@ export default function Expenses() {
               Expense saved — add another below, or close when done.
             </div>
           )}
-          <Field label="Payee" placeholder="e.g. Nepal Electricity Authority" value={form.partyName} onChange={(e) => setForm({ ...form, partyName: e.target.value })} />
+          <datalist id="payee-names">
+            {pastPayees.map((name) => <option key={name} value={name} />)}
+          </datalist>
+          <Field label="Payee" list="payee-names" placeholder="e.g. Nepal Electricity Authority" value={form.partyName} onChange={(e) => setForm({ ...form, partyName: e.target.value })} />
           <div className="flex items-end gap-2.5">
             <label className="flex flex-1 flex-col gap-2">
               <span className="text-[13px] font-semibold">Category</span>

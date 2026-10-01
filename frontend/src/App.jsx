@@ -20,6 +20,7 @@ import Purchases from "./pages/admin/Purchases";
 import Expenses from "./pages/admin/Expenses";
 import ReceivedPayments from "./pages/admin/ReceivedPayments";
 import BankAccounts from "./pages/admin/BankAccounts";
+import StatementImport from "./pages/admin/StatementImport";
 import DayBook from "./pages/admin/DayBook";
 import Reports from "./pages/admin/Reports";
 import Account from "./pages/admin/Account";
@@ -69,6 +70,7 @@ export default function App() {
             <Route path="expenses" element={<Expenses />} />
             <Route path="received-payments" element={<ReceivedPayments />} />
             <Route path="bank-accounts" element={<BankAccounts />} />
+            <Route path="import-statement" element={<StatementImport />} />
             <Route path="daybook" element={<DayBook />} />
             <Route path="reports" element={<Reports />} />
             <Route path="account" element={<Account />} />

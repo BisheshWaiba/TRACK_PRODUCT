@@ -6,6 +6,8 @@ import Modal from "../../components/ui/Modal";
 import Field from "../../components/ui/Field";
 import FinanceCrumb from "../../components/ui/FinanceCrumb";
 import { money } from "../../lib/format";
+import { toBsLabel } from "../../lib/bsDate";
+import { exportXlsx } from "../../lib/exportXlsx";
 import { useData } from "../../context/DataContext";
 import { useFinance, today } from "../../context/FinanceContext";
 
@@ -73,7 +75,7 @@ function timeOf(at) {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-const COLS = "grid-cols-[0.5fr_2fr_0.8fr_0.9fr_0.9fr_0.9fr_1fr]";
+const COLS = "grid-cols-[0.5fr_1.7fr_0.7fr_0.8fr_0.8fr_0.9fr_0.9fr_0.9fr_1fr]";
 
 export default function DayBook() {
   const { loading: dataLoading } = useData();
@@ -144,6 +146,20 @@ export default function DayBook() {
     <span className={`text-right ${v == null ? "text-muted" : className}`}>{v == null ? "—" : money(v)}</span>
   );
 
+  function exportToXlsx() {
+    exportXlsx(`day-book-${day}.xlsx`, "Day Book", [
+      { header: "Time", value: (r) => timeOf(r.at) },
+      { header: "Details", value: (r) => r.title },
+      { header: "Type", value: (r) => KIND[r.kind].label },
+      { header: "Invoice", value: (r) => r.invoice ?? "" },
+      { header: "Discount", value: (r) => r.discount ?? "" },
+      { header: "Bill Amount", value: (r) => r.billed ?? "" },
+      { header: "Cash In", value: (r) => r.cashIn ?? "" },
+      { header: "Cash Out", value: (r) => r.cashOut ?? "" },
+      { header: "Balance", value: (r) => r.balance ?? "" },
+    ], book.rows);
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <FinanceCrumb label="Day Book" />
@@ -151,6 +167,7 @@ export default function DayBook() {
         <div>
           <div className="font-display text-xl font-bold">Day Book</div>
           <div className="text-[13px] text-muted">{day}{isToday ? " · today" : ""}</div>
+          {toBsLabel(day) && <div className="text-[11.5px] text-muted">{toBsLabel(day)} BS</div>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={() => setDay(shiftDay(day, -1))} aria-label="Previous day"
@@ -167,6 +184,12 @@ export default function DayBook() {
               Today
             </button>
           )}
+          <button onClick={exportToXlsx} title="Export XLSX" aria-label="Export XLSX" className="no-print flex h-9 w-9 items-center justify-center rounded-md border border-border hover:bg-surface-2">
+            <Icon name="history" className="h-4 w-4" strokeWidth={1.8} />
+          </button>
+          <button onClick={() => window.print()} title="Export PDF" aria-label="Export PDF" className="no-print flex h-9 w-9 items-center justify-center rounded-md border border-border hover:bg-surface-2">
+            <Icon name="receipt" className="h-4 w-4" strokeWidth={1.8} />
+          </button>
           <NewEntryMenu />
         </div>
       </div>
@@ -180,29 +203,32 @@ export default function DayBook() {
 
       {/* Desktop table */}
       <div className="hidden overflow-x-auto rounded-xl2 border border-border bg-surface sm:block">
-        <div className={`grid min-w-[900px] ${COLS} gap-2 bg-surface-2 px-5 py-3.5 text-[10.5px] font-bold tracking-wide text-muted`}>
+        <div className={`grid min-w-[1100px] ${COLS} gap-2 bg-surface-2 px-5 py-3.5 text-[10.5px] font-bold tracking-wide text-muted`}>
           <span>TIME</span><span>DETAILS</span><span>TYPE</span>
-          <span className="text-right">BILLED</span><span className="text-right">CASH IN</span>
+          <span className="text-right">INVOICE</span><span className="text-right">DISCOUNT</span>
+          <span className="text-right">BILL AMOUNT</span><span className="text-right">CASH IN</span>
           <span className="text-right">CASH OUT</span><span className="text-right">BALANCE</span>
         </div>
 
-        <div className={`grid min-w-[900px] ${COLS} items-center gap-2 border-t border-border bg-bg px-5 py-3 text-[13px]`}>
+        <div className={`grid min-w-[1100px] ${COLS} items-center gap-2 border-t border-border bg-bg px-5 py-3 text-[13px]`}>
           <span />
           <span className="font-semibold">Opening balance</span>
           <span className="text-muted">—</span>
-          {num(null)}{num(null)}{num(null)}
+          {num(null)}{num(null)}{num(null)}{num(null)}{num(null)}
           <span className="text-right font-semibold">{money(book.opening)}</span>
         </div>
 
         {book.rows.map((r) => (
           <button key={r.id} onClick={() => openRow(r)}
-            className={`grid min-w-[900px] ${COLS} items-center gap-2 border-t border-border px-5 py-3.5 text-left text-[13px] hover:bg-bg`}>
+            className={`grid min-w-[1100px] ${COLS} items-center gap-2 border-t border-border px-5 py-3.5 text-left text-[13px] hover:bg-bg`}>
             <span className="text-muted">{timeOf(r.at)}</span>
             <span className="min-w-0">
               <span className="block truncate font-medium">{r.title}</span>
               {r.sub && <span className="block truncate text-[11.5px] text-muted">{r.sub}</span>}
             </span>
             <Badge tone={KIND[r.kind].tone}>{KIND[r.kind].label}</Badge>
+            {num(r.invoice)}
+            {num(r.discount)}
             {num(r.billed)}
             {num(r.cashIn, "font-semibold text-teal")}
             {num(r.cashOut, "font-semibold text-danger")}
@@ -212,11 +238,11 @@ export default function DayBook() {
           </button>
         ))}
 
-        <div className={`grid min-w-[900px] ${COLS} items-center gap-2 border-t border-border bg-surface-2 px-5 py-3.5 text-[13px] font-bold`}>
+        <div className={`grid min-w-[1100px] ${COLS} items-center gap-2 border-t border-border bg-surface-2 px-5 py-3.5 text-[13px] font-bold`}>
           <span /><span className="col-span-2 text-muted">
             Opening {money(book.opening)} + in {money(book.totalIn)} − out {money(book.totalOut)}
           </span>
-          {num(null)}
+          {num(null)}{num(null)}{num(null)}
           <span className="text-right text-teal">{money(book.totalIn)}</span>
           <span className="text-right text-danger">{money(book.totalOut)}</span>
           <span className={`text-right ${book.closing < 0 ? "text-danger" : ""}`}>{money(book.closing)}</span>

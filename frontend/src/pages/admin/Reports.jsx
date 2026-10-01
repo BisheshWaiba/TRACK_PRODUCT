@@ -1,12 +1,27 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import Icon from "../../components/icons/Icon";
 import Badge from "../../components/ui/Badge";
+import CashflowChart from "../../components/ui/CashflowChart";
+import { exportXlsx } from "../../lib/exportXlsx";
 import { money } from "../../lib/format";
 import { useData } from "../../context/DataContext";
 import { useFinance, today } from "../../context/FinanceContext";
 
-const TABS = ["Profit & Loss", "Sales Report", "Inventory Report", "Payment Report", "Stock Movement History"];
+const TABS = ["Profit & Loss", "Totals", "Sales Report", "Inventory Report", "Payment Report", "Stock Movement History"];
 const PERIODS = ["This Month", "This Year", "All Time"];
+
+// Where a Totals entry's own record actually lives - there's no detail
+// page per business_transaction, so sale/expense/purchase link to their
+// list; a customer/supplier ledger line links to that party's own page,
+// which is the closest thing this app has to "the source".
+function entryHref(entry) {
+  if (entry.kind === "customer") return `/customers/${entry.partyId}`;
+  if (entry.kind === "supplier") return `/suppliers/${entry.partyId}`;
+  if (entry.kind === "expense") return "/expenses";
+  if (entry.kind === "purchase") return "/purchases";
+  return "/sales";
+}
 
 function periodRange(period) {
   const now = new Date();
@@ -16,14 +31,24 @@ function periodRange(period) {
 }
 
 export default function Reports() {
-  const { products, customers, sales, stockMovements, productById, saleTotal, getCustomerStats, loading } = useData();
-  const { balances, report, loading: financeLoading } = useFinance();
+  const { products, customers, sales, stockMovements, productById, customerById, saleTotal, getCustomerStats, loading } = useData();
+  const { balances, report, reportEntries, cashflow, suppliers, loading: financeLoading } = useFinance();
   const [tab, setTab] = useState("Profit & Loss");
   const [period, setPeriod] = useState("This Month");
+  const [granularity, setGranularity] = useState("week");
 
   if (loading || financeLoading) return <div className="p-8 text-sm text-muted">Loading reports…</div>;
 
   const pl = report(periodRange(period));
+  const totals = tab === "Totals" ? report(periodRange(period)) : null;
+  const entries = tab === "Totals" ? reportEntries(periodRange(period)) : [];
+  const buckets = tab === "Totals" ? cashflow(granularity) : [];
+
+  function partyName(entry) {
+    if (entry.kind === "customer") return customerById(entry.partyId)?.name || "Customer";
+    if (entry.kind === "supplier") return suppliers.find((s) => s.id === entry.partyId)?.name || "Supplier";
+    return entry.label;
+  }
 
   const topProducts = [...products]
     .map((p) => ({ ...p, revenue: sales.filter((s) => s.productId === p.id).reduce((sum, s) => sum + saleTotal(s), 0) }))
@@ -82,6 +107,66 @@ export default function Reports() {
               <div className={`mt-1 font-display text-lg font-bold ${balances.total < 0 ? "text-danger" : ""}`}>{money(balances.total)}</div>
             </div>
             <span className="text-[12px] text-muted">Actual cash + bank, regardless of period above</span>
+          </div>
+        </div>
+      )}
+
+      {tab === "Totals" && (
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex gap-2">
+              {PERIODS.map((p) => (
+                <button key={p} onClick={() => setPeriod(p)} className={`rounded-full px-4 py-2 text-[13px] font-semibold ${period === p ? "bg-ink text-white" : "bg-surface-2 hover:bg-border"}`}>
+                  {p}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              {["week", "month"].map((g) => (
+                <button key={g} onClick={() => setGranularity(g)} className={`rounded-full px-4 py-2 text-[13px] font-semibold capitalize ${granularity === g ? "bg-ink text-white" : "bg-surface-2 hover:bg-border"}`}>
+                  {g === "week" ? "Last 7 days" : "Last 6 months"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:gap-5">
+            <div className="card"><span className="text-xs font-semibold text-muted">TOTAL RECEIVED</span><div className="mt-1.5 font-display text-xl font-bold text-teal">{money(totals.received)}</div></div>
+            <div className="card"><span className="text-xs font-semibold text-muted">TOTAL PAID</span><div className="mt-1.5 font-display text-xl font-bold text-danger">{money(totals.paid)}</div></div>
+          </div>
+
+          <div className="card">
+            <span className="mb-4 block text-[14.5px] font-semibold">Cashflow — {granularity === "week" ? "last 7 days" : "last 6 months"}</span>
+            <CashflowChart buckets={buckets} />
+          </div>
+
+          <div className="card !p-0 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border p-4">
+              <span className="text-[14.5px] font-semibold">Entries this period</span>
+              <button
+                onClick={() => exportXlsx(`totals-${period.replace(/\s+/g, "-").toLowerCase()}.xlsx`, "Totals", [
+                  { header: "Date", value: (e) => e.date },
+                  { header: "Party / Label", value: (e) => partyName(e) },
+                  { header: "Direction", value: (e) => e.direction },
+                  { header: "Amount", value: (e) => e.amount },
+                ], entries)}
+                className="text-[12.5px] font-semibold text-accent hover:underline"
+              >
+                Export XLSX
+              </button>
+            </div>
+            {entries.map((entry) => (
+              <Link key={entry.kind + entry.id} to={entryHref(entry)} className="flex items-center justify-between gap-3 border-t border-border p-4 text-[13px] hover:bg-bg">
+                <div className="min-w-0">
+                  <div className="truncate font-semibold">{partyName(entry)}</div>
+                  <div className="text-[11.5px] text-muted">{entry.date}</div>
+                </div>
+                <span className={`flex-shrink-0 font-semibold ${entry.direction === "received" ? "text-teal" : "text-danger"}`}>
+                  {entry.direction === "received" ? "+" : "−"}{money(entry.amount)}
+                </span>
+              </Link>
+            ))}
+            {entries.length === 0 && <div className="p-6 text-center text-sm text-muted">Nothing in this period.</div>}
           </div>
         </div>
       )}

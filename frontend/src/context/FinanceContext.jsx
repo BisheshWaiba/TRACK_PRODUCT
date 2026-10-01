@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useData } from "./DataContext";
-import { accountBalances, dayBook, partyBalances, profitAndLoss, purchasePaidAmount, purchasePaymentStatus, receivedAndPaid } from "../lib/finance";
+import { accountBalances, cashflow, dayBook, partyBalances, profitAndLoss, purchasePaidAmount, purchasePaymentStatus, receivedAndPaid, receivedAndPaidEntries } from "../lib/finance";
 import { groupSalesByInvoice } from "../lib/calculations";
 
 // The books. Kept apart from DataContext deliberately: that one is about
@@ -141,8 +141,8 @@ export function FinanceProvider({ children }) {
   // Everything the screens read, worked out once. Customers and suppliers
   // remain separate because their ledgers represent opposite relationships.
   const book = useMemo(
-    () => ({ transactions, customerEntries, vendorEntries, transfers, accounts: bankAccounts, parties: customers, suppliers }),
-    [transactions, customerEntries, vendorEntries, transfers, bankAccounts, customers, suppliers]
+    () => ({ transactions, customerEntries, vendorEntries, transfers, accounts: bankAccounts, parties: customers, suppliers, invoices }),
+    [transactions, customerEntries, vendorEntries, transfers, bankAccounts, customers, suppliers, invoices]
   );
 
   const balances = useMemo(() => accountBalances(book), [book]);
@@ -160,6 +160,14 @@ export function FinanceProvider({ children }) {
       ...profitAndLoss({ sales: saleValues, transactions }, range),
       ...receivedAndPaid(book, range),
     };
+  }
+
+  function reportEntries(range) {
+    return receivedAndPaidEntries(book, range);
+  }
+
+  function cashflowFor(granularity, count) {
+    return cashflow(book, granularity, count);
   }
 
   function book_(day) {
@@ -310,7 +318,7 @@ export function FinanceProvider({ children }) {
     bankAccounts, suppliers, expenseCategories, financeItems, transactions,
     customerEntries, vendorEntries, transfers,
     loading, error, refresh,
-    balances, ledger, report, dayBookFor: book_, canEdit,
+    balances, ledger, report, reportEntries, cashflow: cashflowFor, dayBookFor: book_, canEdit,
     purchasePaidAmount: getPurchasePaidAmount, purchasePaymentStatus: getPurchasePaymentStatus,
     nextReceiptNo: () => nextNumber(customerEntries),
     nextPaymentNo: () => nextNumber(vendorEntries),
