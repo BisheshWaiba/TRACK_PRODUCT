@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import Icon from "../../components/icons/Icon";
 import StatCard from "../../components/ui/StatCard";
-import CashflowChart from "../../components/ui/CashflowChart";
 import Modal from "../../components/ui/Modal";
 import { money } from "../../lib/format";
 import { useData } from "../../context/DataContext";
@@ -38,15 +37,13 @@ const SHORTCUTS = [
 
 export default function Finance() {
   const { customers } = useData();
-  const { balances, ledger, suppliers, report, cashflow, loading } = useFinance();
-  const [granularity, setGranularity] = useState("week");
+  const { balances, ledger, suppliers, report, loading } = useFinance();
   const [breakdown, setBreakdown] = useState(null); // "receivable" | "payable" | null
 
   if (loading) return <div className="p-8 text-sm text-muted">Loading finance…</div>;
 
   const period = report({ from: monthStart(), to: today() });
   const yearly = report({ from: yearStart(), to: today() });
-  const buckets = cashflow(granularity);
 
   // Who makes up the To Receive / To Give total, biggest first - a single
   // summed figure can't be checked against anything on its own.
@@ -84,20 +81,6 @@ export default function Finance() {
         <StatCard label="EXPENSE (THIS MONTH)" value={money(period.expense)} icon={<Icon name="arrowUp" className="h-[17px] w-[17px] text-danger" />} />
         <StatCard label="RECEIVED (THIS YEAR)" value={money(yearly.received)} subTone="teal" icon={<Icon name="history" className="h-[17px] w-[17px] text-teal" />} />
         <StatCard label="PAID (THIS YEAR)" value={money(yearly.paid)} icon={<Icon name="history" className="h-[17px] w-[17px] text-danger" />} />
-      </div>
-
-      <div className="card">
-        <div className="mb-4 flex items-center justify-between">
-          <span className="text-[14.5px] font-semibold">Cashflow</span>
-          <div className="flex gap-2">
-            {["week", "month"].map((g) => (
-              <button key={g} onClick={() => setGranularity(g)} className={`rounded-full px-3 py-1.5 text-[12px] font-semibold capitalize ${granularity === g ? "bg-ink text-white" : "bg-surface-2 hover:bg-border"}`}>
-                {g}
-              </button>
-            ))}
-          </div>
-        </div>
-        <CashflowChart buckets={buckets} />
       </div>
 
       <div className="card flex flex-col gap-3.5">
