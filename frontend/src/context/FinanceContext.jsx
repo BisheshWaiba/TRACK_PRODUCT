@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { supabase } from "../lib/supabaseClient";
 import { useData } from "./DataContext";
 import { accountBalances, dayBook, partyBalances, profitAndLoss, receivedAndPaid } from "../lib/finance";
+import { groupSalesByInvoice } from "../lib/calculations";
 
 // The books. Kept apart from DataContext deliberately: that one is about
 // what was sold and shipped, this one is about what it did to the money,
@@ -25,7 +26,7 @@ function mapItem(i) {
 function mapTransaction(t) {
   return {
     id: t.id, type: t.type, amount: Number(t.amount), note: t.note,
-    partyName: t.party_name, partyId: t.party_id, billNo: t.bill_no, billDate: t.bill_date,
+    partyName: t.party_name, partyId: t.party_id, supplierId: t.supplier_id, billNo: t.bill_no, billDate: t.bill_date,
     items: t.items || [], discountAmount: Number(t.discount_amount || 0), vatAmount: Number(t.vat_amount || 0),
     expenseCategoryId: t.expense_category_id, paymentMode: t.payment_mode, bankAccountId: t.bank_account_id,
     sourceType: t.source_type, sourceId: t.source_id, createdAt: t.created_at,
@@ -40,7 +41,7 @@ function mapCustomerEntry(e) {
 }
 function mapVendorEntry(e) {
   return {
-    id: e.id, vendorId: e.vendor_id, entryType: e.entry_type, amount: Number(e.amount), note: e.note,
+    id: e.id, vendorId: e.vendor_id, supplierId: e.supplier_id || e.vendor_id, entryType: e.entry_type, amount: Number(e.amount), note: e.note,
     source: e.source, sourceType: e.source_type, sourceId: e.source_id, bankAccountId: e.bank_account_id,
     entryDate: e.entry_date, receiptNo: e.receipt_no, createdAt: e.created_at,
   };
@@ -60,9 +61,10 @@ export function today() {
 }
 
 export function FinanceProvider({ children }) {
-  const { customers, sales, saleTotal } = useData();
+  const { customers, sales, invoices, saleTotal, invoiceTotal } = useData();
 
   const [bankAccounts, setBankAccounts] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [expenseCategories, setExpenseCategories] = useState([]);
   const [financeItems, setFinanceItems] = useState([]);
   const [transactions, setTransactions] = useState([]);
@@ -74,7 +76,7 @@ export function FinanceProvider({ children }) {
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const [ba, ec, fi, bt, cl, vl, at] = await Promise.all([
+    const [ba, ec, fi, bt, cl, vl, at, sr] = await Promise.all([
       supabase.from("bank_accounts").select("*").order("name"),
       supabase.from("expense_categories").select("*").order("name"),
       supabase.from("finance_items").select("*").order("name"),
@@ -82,8 +84,9 @@ export function FinanceProvider({ children }) {
       supabase.from("customer_ledger_entries").select("*").order("created_at", { ascending: false }),
       supabase.from("vendor_ledger_entries").select("*").order("created_at", { ascending: false }),
       supabase.from("account_transfers").select("*").order("transfer_date", { ascending: false }),
+      supabase.from("suppliers").select("*").order("name"),
     ]);
-    const err = ba.error || ec.error || fi.error || bt.error || cl.error || vl.error || at.error;
+    const err = ba.error || ec.error || fi.error || bt.error || cl.error || vl.error || at.error || sr.error;
     setError(err ? err.message : null);
     setBankAccounts((ba.data || []).map(mapAccount));
     setExpenseCategories((ec.data || []).map(mapCategory));
@@ -92,6 +95,7 @@ export function FinanceProvider({ children }) {
     setCustomerEntries((cl.data || []).map(mapCustomerEntry));
     setVendorEntries((vl.data || []).map(mapVendorEntry));
     setTransfers((at.data || []).map(mapTransfer));
+    setSuppliers((sr.data || []).map((s) => ({ id: s.id, name: s.name, contact: s.contact || "", phone: s.phone || "", address: s.address || "", city: s.city || "", joined: s.joined, createdAt: s.created_at })));
     setLoading(false);
   }, []);
 
@@ -124,6 +128,7 @@ export function FinanceProvider({ children }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "business_transactions" }, (p) => applyChange(setTransactions, mapTransaction, p))
       .on("postgres_changes", { event: "*", schema: "public", table: "customer_ledger_entries" }, (p) => applyChange(setCustomerEntries, mapCustomerEntry, p))
       .on("postgres_changes", { event: "*", schema: "public", table: "vendor_ledger_entries" }, (p) => applyChange(setVendorEntries, mapVendorEntry, p))
+      .on("postgres_changes", { event: "*", schema: "public", table: "suppliers" }, (p) => applyChange(setSuppliers, (s) => ({ id: s.id, name: s.name, contact: s.contact || "", phone: s.phone || "", address: s.address || "", city: s.city || "", joined: s.joined, createdAt: s.created_at }), p))
       .on("postgres_changes", { event: "*", schema: "public", table: "account_transfers" }, (p) => applyChange(setTransfers, mapTransfer, p))
       .subscribe();
 
@@ -132,22 +137,21 @@ export function FinanceProvider({ children }) {
     };
   }, []);
 
-  // Everything the screens read, worked out once. `parties` is the
-  // customers table - the same rows serve as suppliers when we are the
-  // ones buying.
+  // Everything the screens read, worked out once. Customers and suppliers
+  // remain separate because their ledgers represent opposite relationships.
   const book = useMemo(
-    () => ({ transactions, customerEntries, vendorEntries, transfers, accounts: bankAccounts, parties: customers }),
-    [transactions, customerEntries, vendorEntries, transfers, bankAccounts, customers]
+    () => ({ transactions, customerEntries, vendorEntries, transfers, accounts: bankAccounts, parties: customers, suppliers }),
+    [transactions, customerEntries, vendorEntries, transfers, bankAccounts, customers, suppliers]
   );
 
   const balances = useMemo(() => accountBalances(book), [book]);
   const ledger = useMemo(() => partyBalances(customerEntries, vendorEntries), [customerEntries, vendorEntries]);
 
   const saleValues = useMemo(
-    () => sales.map((s) => ({ date: s.date, value: saleTotal(s) })),
+    () => groupSalesByInvoice(sales, invoices).map((invoice) => ({ date: invoice.date, value: invoice.legacy ? saleTotal(invoice.lines[0]) : invoiceTotal(invoice) })),
     // saleTotal closes over products, which change with sales rarely
     // enough that recomputing on the sales list is the right trade.
-    [sales, saleTotal]
+    [sales, invoices, saleTotal, invoiceTotal]
   );
 
   function report(range) {
@@ -176,9 +180,9 @@ export function FinanceProvider({ children }) {
     await refresh();
   }
 
-  async function recordPayout({ vendorId, amount, date, receiptNo, note, bankAccountId }) {
+  async function recordPayout({ supplierId, vendorId, amount, date, receiptNo, note, bankAccountId }) {
     const { error: err } = await supabase.from("vendor_ledger_entries").insert({
-      vendor_id: vendorId, entry_type: "credit", amount: Number(amount), note: note || null,
+      vendor_id: vendorId || null, supplier_id: supplierId || null, entry_type: "credit", amount: Number(amount), note: note || null,
       source: "manual", bank_account_id: bankAccountId || null, entry_date: date || today(),
       receipt_no: receiptNo || null,
     });
@@ -193,6 +197,7 @@ export function FinanceProvider({ children }) {
       note: input.note || null,
       party_name: input.partyName || null,
       party_id: input.partyId || null,
+      supplier_id: input.supplierId || null,
       bill_no: input.billNo || null,
       bill_date: input.billDate || today(),
       items: input.items || [],
@@ -231,6 +236,29 @@ export function FinanceProvider({ children }) {
     return data.id;
   }
 
+  async function createSupplier(input) {
+    const id = input.id || "supplier-" + input.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + Date.now().toString(36);
+    const row = { id, name: input.name.trim(), contact: input.contact || null, phone: input.phone || null, address: input.address || null, city: input.city || input.address?.split(",").pop()?.trim() || null, joined: input.joined || today() };
+    const { error: err } = await supabase.from("suppliers").insert(row);
+    if (err) throw err;
+    await refresh();
+    return id;
+  }
+  async function updateSupplier(id, patch) {
+    const row = { name: patch.name, contact: patch.contact || null, phone: patch.phone || null, address: patch.address || null, city: patch.city || patch.address?.split(",").pop()?.trim() || null };
+    const { error: err } = await supabase.from("suppliers").update(row).eq("id", id);
+    if (err) throw err;
+    await refresh();
+  }
+  async function deleteSupplier(id) {
+    const { error: err } = await supabase.from("suppliers").delete().eq("id", id);
+    if (err) {
+      if (err.code === "23503") throw new Error("Can't delete this supplier because purchase or payment records still reference it.");
+      throw err;
+    }
+    await refresh();
+  }
+
   async function createBankAccount(input) {
     const { error: err } = await supabase.from("bank_accounts").insert({
       name: input.name, bank_name: input.bankName || null, account_number: input.accountNumber || null,
@@ -262,14 +290,14 @@ export function FinanceProvider({ children }) {
   }
 
   const value = {
-    bankAccounts, expenseCategories, financeItems, transactions,
+    bankAccounts, suppliers, expenseCategories, financeItems, transactions,
     customerEntries, vendorEntries, transfers,
     loading, error, refresh,
     balances, ledger, report, dayBookFor: book_, canEdit,
     nextReceiptNo: () => nextNumber(customerEntries),
     nextPaymentNo: () => nextNumber(vendorEntries),
     recordReceipt, recordPayout, saveTransaction, updateEntry, deleteRow,
-    createBankAccount, createTransfer, createExpenseCategory,
+    createBankAccount, createTransfer, createExpenseCategory, createSupplier, updateSupplier, deleteSupplier,
   };
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;

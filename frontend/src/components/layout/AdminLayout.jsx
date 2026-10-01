@@ -26,6 +26,7 @@ const NAV = [
   { to: "/", label: "Dashboard", icon: "grid", end: true },
   { to: "/inventory", label: "Inventory", icon: "layers" },
   { to: "/customers", label: "Customers", icon: "users" },
+  { to: "/suppliers", label: "Suppliers", icon: "truck" },
   { to: "/sales", label: "Sales", icon: "receipt" },
   { to: "/payments", label: "Payments", icon: "wallet" },
   { to: "/reports", label: "Reports", icon: "chart" },
@@ -36,6 +37,7 @@ const TITLES = {
   "/": "Dashboard",
   "/inventory": "Inventory",
   "/customers": "Customers",
+  "/suppliers": "Suppliers",
   "/sales": "Sales",
   "/payments": "Payments",
   "/finance": "Finance",
@@ -63,7 +65,7 @@ export default function AdminLayout() {
   }, [location.pathname]);
   const title =
     TITLES[location.pathname] ||
-    (location.pathname.startsWith("/customers/") ? "Customer Detail" : "BulkTrack Admin");
+    (location.pathname.startsWith("/customers/") ? "Customer Detail" : location.pathname.startsWith("/suppliers/") ? "Supplier Detail" : "BulkTrack Admin");
   const onAccount = location.pathname === "/account";
   const displayName = user?.user_metadata?.full_name || user?.email || "Wholesaler Admin";
   const displayRole = user?.user_metadata?.role || user?.email || "";

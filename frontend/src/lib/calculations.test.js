@@ -7,6 +7,10 @@ import {
   saleTotal,
   salePaidAmount,
   salePaymentStatus,
+  invoiceTotal,
+  invoicePaidAmount,
+  invoicePaymentStatus,
+  groupSalesByInvoice,
   salesForCustomer,
   stockStatus,
 } from "./calculations";
@@ -34,6 +38,13 @@ const payments = [
   // s3 has no payments at all -> pending
 ];
 
+const invoice = { id: "inv1", total: 330 };
+const invoiceSales = [
+  { id: "is1", invoiceId: "inv1", customerId: "c1", productId: "p1", qty: 2, unitPrice: 100 },
+  { id: "is2", invoiceId: "inv1", customerId: "c1", productId: "p3", qty: 1, unitPrice: 50 },
+];
+const invoicePayments = [{ id: "ip1", invoiceId: "inv1", amount: 100 }];
+
 describe("productById / customerById", () => {
   it("finds an existing product by id", () => {
     expect(productById(products, "p2").name).toBe("Gadget");
@@ -52,6 +63,22 @@ describe("saleTotal", () => {
   });
   it("returns 0 if the product no longer exists", () => {
     expect(saleTotal({ productId: "missing", qty: 3 }, products)).toBe(0);
+  });
+  it("uses the captured historical unit price", () => {
+    expect(saleTotal({ productId: "p1", qty: 2, unitPrice: 75 }, products)).toBe(150);
+  });
+});
+
+describe("invoice totals and payment status", () => {
+  it("uses the invoice total including discount and VAT", () => {
+    expect(invoiceTotal(invoice, invoiceSales, products)).toBe(330);
+  });
+  it("sums invoice payments without double-counting its lines", () => {
+    expect(invoicePaidAmount(invoicePayments, "inv1", invoiceSales)).toBe(100);
+    expect(invoicePaymentStatus(invoice, invoiceSales, products, invoicePayments)).toBe("Partial");
+  });
+  it("groups legacy sales as one-line invoices", () => {
+    expect(groupSalesByInvoice([sales[0]], []).map((group) => group.lines[0].id)).toEqual(["s1"]);
   });
 });
 

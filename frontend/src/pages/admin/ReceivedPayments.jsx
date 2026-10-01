@@ -10,12 +10,12 @@ import { useData } from "../../context/DataContext";
 import { useFinance, today } from "../../context/FinanceContext";
 
 function blankForm(direction, no) {
-  return { direction, partyName: "", partyId: null, no, noTouched: false, amount: "", date: today(), note: "", bankAccountId: "" };
+  return { direction, partyName: "", partyId: null, supplierId: null, no, noTouched: false, amount: "", date: today(), note: "", bankAccountId: "" };
 }
 
 export default function ReceivedPayments() {
   const { customers, createCustomer, loading: dataLoading } = useData();
-  const { bankAccounts, customerEntries, vendorEntries, nextReceiptNo, nextPaymentNo, recordReceipt, recordPayout, loading: financeLoading } = useFinance();
+  const { suppliers, createSupplier, bankAccounts, customerEntries, vendorEntries, nextReceiptNo, nextPaymentNo, recordReceipt, recordPayout, loading: financeLoading } = useFinance();
   const [searchParams, setSearchParams] = useSearchParams();
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(() => blankForm("received", nextReceiptNo()));
@@ -53,13 +53,16 @@ export default function ReceivedPayments() {
     setForm((f) => ({
       ...f,
       direction,
+      partyId: null,
+      supplierId: null,
       no: f.noTouched ? f.no : direction === "received" ? nextReceiptNo() : nextPaymentNo(),
     }));
   }
 
   function partyNameChange(value) {
-    const match = customers.find((c) => c.name.toLowerCase() === value.trim().toLowerCase());
-    setForm((f) => ({ ...f, partyName: value, partyId: match ? match.id : null }));
+    const list = form.direction === "received" ? customers : suppliers;
+    const match = list.find((p) => p.name.toLowerCase() === value.trim().toLowerCase());
+    setForm((f) => ({ ...f, partyName: value, partyId: form.direction === "received" && match ? match.id : null, supplierId: form.direction === "payment_out" && match ? match.id : null }));
   }
 
   async function handleSave(e) {
@@ -69,13 +72,15 @@ export default function ReceivedPayments() {
     setSaving(true);
     try {
       let partyId = form.partyId;
-      if (!partyId) partyId = await createCustomer({ name: form.partyName.trim() });
+      let supplierId = form.supplierId;
+      if (form.direction === "received" && !partyId) partyId = await createCustomer({ name: form.partyName.trim() });
+      if (form.direction === "payment_out" && !supplierId) supplierId = await createSupplier({ name: form.partyName.trim() });
       const payload = {
         amount, date: form.date, receiptNo: form.no || null, note: form.note || null,
         bankAccountId: form.bankAccountId || null,
       };
       if (form.direction === "received") await recordReceipt({ ...payload, customerId: partyId });
-      else await recordPayout({ ...payload, vendorId: partyId });
+      else await recordPayout({ ...payload, supplierId });
       // Stays open for the next one - the spec's own multi-row table idea
       // (one date/method/direction, several people and amounts) for a
       // sidebar app: same direction, date and method, next number in the
@@ -86,7 +91,7 @@ export default function ReceivedPayments() {
       // just used is worked out directly instead.
       const digits = Number(String(form.no).replace(/\D/g, ""));
       const nextNo = digits > 0 ? String(digits + 1).padStart(3, "0") : (form.direction === "received" ? nextReceiptNo() : nextPaymentNo());
-      setForm({ direction: form.direction, partyName: "", partyId: null, no: nextNo, noTouched: false, amount: "", date: form.date, note: "", bankAccountId: form.bankAccountId });
+      setForm({ direction: form.direction, partyName: "", partyId: null, supplierId: null, no: nextNo, noTouched: false, amount: "", date: form.date, note: "", bankAccountId: form.bankAccountId });
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 4000);
     } finally {
@@ -96,11 +101,11 @@ export default function ReceivedPayments() {
 
   const feed = [
     ...customerEntries.filter((e) => e.source === "manual" && e.entryType === "credit").map((e) => ({ ...e, kind: "received", partyId: e.customerId })),
-    ...vendorEntries.filter((e) => e.source === "manual" && e.entryType === "credit").map((e) => ({ ...e, kind: "paid", partyId: e.vendorId })),
+    ...vendorEntries.filter((e) => e.source === "manual" && e.entryType === "credit").map((e) => ({ ...e, kind: "paid", partyId: e.supplierId || e.vendorId })),
   ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   function partyName(id) {
-    return customers.find((c) => c.id === id)?.name || "Unknown party";
+    return customers.find((c) => c.id === id)?.name || suppliers.find((s) => s.id === id)?.name || "Unknown party";
   }
 
   return (
@@ -157,7 +162,7 @@ export default function ReceivedPayments() {
             </div>
           )}
           <datalist id="party-names">
-            {customers.map((c) => <option key={c.id} value={c.name} />)}
+            {(form.direction === "received" ? customers : suppliers).map((p) => <option key={p.id} value={p.name} />)}
           </datalist>
 
           <div className="flex gap-2.5">
@@ -169,8 +174,8 @@ export default function ReceivedPayments() {
             </button>
           </div>
 
-          <Field label={form.direction === "received" ? "Received From" : "Paid To"} list="party-names" placeholder="Existing customer or a new name" value={form.partyName} onChange={(e) => partyNameChange(e.target.value)} required />
-          {!form.partyId && form.partyName && (
+          <Field label={form.direction === "received" ? "Received From" : "Paid To"} list="party-names" placeholder={form.direction === "received" ? "Existing customer or a new name" : "Existing supplier or a new name"} value={form.partyName} onChange={(e) => partyNameChange(e.target.value)} required />
+          {!form.partyId && !form.supplierId && form.partyName && (
             <p className="-mt-2 text-[12px] text-muted">No matching party — a new one is created when you save.</p>
           )}
 

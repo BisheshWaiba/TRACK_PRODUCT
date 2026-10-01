@@ -21,16 +21,16 @@ export default function AdminDashboard() {
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
-        <StatCard label="TOTAL PRODUCTS" value={totals.totalProducts} sub={`across ${new Set(products.map((p) => p.category)).size} categories`} icon={<Icon name="box" className="h-[17px] w-[17px] text-slate" />} />
-        <StatCard label="TOTAL STOCK (UNITS)" value={totals.totalStock} sub="held across warehouses" icon={<Icon name="layers" className="h-[17px] w-[17px] text-ink-soft" />} />
-        <StatCard label="STOCK SOLD / ALLOCATED" value={totals.totalTaken} sub={`${Math.round((totals.totalTaken / totals.totalStock) * 100)}% of stock taken`} subTone="teal" icon={<Icon name="receipt" className="h-[17px] w-[17px] text-accent-text" />} />
-        <StatCard label="STOCK AVAILABLE" value={totals.totalAvailable} sub="ready to sell" icon={<Icon name="box" className="h-[17px] w-[17px] text-teal" />} />
+        <StatCard to="/inventory" label="TOTAL PRODUCTS" value={totals.totalProducts} sub={`across ${new Set(products.map((p) => p.category)).size} categories`} icon={<Icon name="box" className="h-[17px] w-[17px] text-slate" />} />
+        <StatCard to="/inventory" label="TOTAL STOCK (UNITS)" value={totals.totalStock} sub="held across warehouses" icon={<Icon name="layers" className="h-[17px] w-[17px] text-ink-soft" />} />
+        <StatCard to="/sales" label="STOCK SOLD / ALLOCATED" value={totals.totalTaken} sub={`${Math.round((totals.totalTaken / totals.totalStock) * 100)}% of stock taken`} subTone="teal" icon={<Icon name="receipt" className="h-[17px] w-[17px] text-accent-text" />} />
+        <StatCard to="/inventory" label="STOCK AVAILABLE" value={totals.totalAvailable} sub="ready to sell" icon={<Icon name="box" className="h-[17px] w-[17px] text-teal" />} />
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:gap-5 sm:grid-cols-3">
-        <StatCard label="TOTAL SALES" value={money(totals.totalSales)} icon={<Icon name="receipt" className="h-[17px] w-[17px] text-ink-soft" />} />
-        <StatCard label="AMOUNT RECEIVED" value={money(totals.amountReceived)} subTone="teal" icon={<Icon name="cash" className="h-[17px] w-[17px] text-teal" />} />
-        <StatCard label="PENDING PAYMENTS" value={money(totals.pendingPayments)} danger icon={<Icon name="alert" className="h-[17px] w-[17px] text-danger" />} />
+        <StatCard to="/sales" label="TOTAL SALES" value={money(totals.totalSales)} icon={<Icon name="receipt" className="h-[17px] w-[17px] text-ink-soft" />} />
+        <StatCard to="/payments" label="AMOUNT RECEIVED" value={money(totals.amountReceived)} subTone="teal" icon={<Icon name="cash" className="h-[17px] w-[17px] text-teal" />} />
+        <StatCard to="/payments" label="PENDING PAYMENTS" value={money(totals.pendingPayments)} danger icon={<Icon name="alert" className="h-[17px] w-[17px] text-danger" />} />
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:gap-5 lg:grid-cols-[1.6fr_1fr]">

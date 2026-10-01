@@ -25,7 +25,7 @@ export function onDate(row) {
 /** A sale or purchase bill with nobody to bill it to: no ledger will
  *  ever settle it, so the money moved there and then. */
 export function settledOnSpot(t) {
-  return (t.type === "sale" || t.type === "purchase") && !t.partyId;
+  return (t.type === "sale" || t.type === "purchase") && !t.partyId && !t.supplierId;
 }
 
 const CASH = "cash";
@@ -50,7 +50,8 @@ export function partyBalances(customerEntries, vendorEntries) {
     at(e.customerId).receivable += e.entryType === "debit" ? e.amount : -e.amount;
   }
   for (const e of vendorEntries) {
-    at(e.vendorId).payable += e.entryType === "debit" ? e.amount : -e.amount;
+    const partyId = e.supplierId || e.vendorId;
+    if (partyId) at(partyId).payable += e.entryType === "debit" ? e.amount : -e.amount;
   }
 
   // Only parties on the wrong side of zero count towards the totals, so
@@ -214,9 +215,9 @@ export function profitAndLoss({ sales = [], transactions = [] }, range = {}) {
 // for whatever was actually collected - as a payment. Showing the
 // mirrored ledger debit as well would count it twice, so it is skipped.
 export function dayBook(data, day) {
-  const { transactions = [], customerEntries = [], vendorEntries = [], transfers = [], accounts = [], parties = [] } = data;
+  const { transactions = [], customerEntries = [], vendorEntries = [], transfers = [], accounts = [], parties = [], suppliers = [] } = data;
 
-  const partyName = new Map(parties.map((p) => [p.id, p.name]));
+  const partyName = new Map([...parties, ...suppliers].map((p) => [p.id, p.name]));
   const accountName = new Map(accounts.map((a) => [a.id, a.name]));
   const via = (id) => (id ? accountName.get(id) || "Bank" : "Cash");
   const onDay = (row) => onDate(row) === day;
@@ -259,7 +260,7 @@ export function dayBook(data, day) {
     if (!onDay(e) || e.entryType !== "credit") continue;
     push({
       id: e.id, kind: "paid", at: e.createdAt,
-      title: "Paid to " + (partyName.get(e.vendorId) || "supplier"),
+      title: "Paid to " + (partyName.get(e.supplierId || e.vendorId) || "supplier"),
       sub: [e.receiptNo && "Receipt #" + e.receiptNo, via(e.bankAccountId), e.note].filter(Boolean).join(" · "),
       cashOut: e.amount,
     });

@@ -22,10 +22,17 @@ function mapCustomer(c) {
   return { id: c.id, name: c.name, contact: c.contact, phone: c.phone, address: c.address, city: c.city, joined: c.joined };
 }
 function mapSale(s) {
-  return { id: s.id, date: s.date, customerId: s.customer_id, productId: s.product_id, qty: s.qty, status: s.status };
+  return { id: s.id, date: s.date, customerId: s.customer_id, productId: s.product_id, qty: s.qty, status: s.status, invoiceId: s.invoice_id, unitPrice: s.unit_price == null ? null : Number(s.unit_price) };
+}
+function mapInvoice(i) {
+  return {
+    id: i.id, date: i.date, customerId: i.customer_id, subtotal: Number(i.subtotal),
+    discountAmount: Number(i.discount_amount || 0), vatAmount: Number(i.vat_amount || 0),
+    total: Number(i.total), paymentStatus: i.payment_status, createdAt: i.created_at, updatedAt: i.updated_at,
+  };
 }
 function mapPayment(p) {
-  return { id: p.id, date: p.date, saleId: p.sale_id, amount: Number(p.amount), method: p.method };
+  return { id: p.id, date: p.date, saleId: p.sale_id, invoiceId: p.invoice_id, amount: Number(p.amount), method: p.method };
 }
 function mapMovement(m) {
   return { id: m.id, date: m.date, productId: m.product_id, type: m.type, qty: m.qty, reference: m.reference };
@@ -38,6 +45,7 @@ export function DataProvider({ children }) {
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [sales, setSales] = useState([]);
+  const [invoices, setInvoices] = useState([]);
   const [payments, setPayments] = useState([]);
   const [stockMovements, setStockMovements] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,18 +53,20 @@ export function DataProvider({ children }) {
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const [pr, cr, sr, payr, mr] = await Promise.all([
+    const [pr, cr, sr, ir, payr, mr] = await Promise.all([
       supabase.from("products").select("*").order("name"),
       supabase.from("customers").select("*").order("name"),
       supabase.from("sales").select("*").order("date", { ascending: false }),
+      supabase.from("sales_invoices").select("*").order("date", { ascending: false }),
       supabase.from("payments").select("*").order("date", { ascending: false }),
       supabase.from("stock_movements").select("*").order("date", { ascending: false }),
     ]);
-    const err = pr.error || cr.error || sr.error || payr.error || mr.error;
+    const err = pr.error || cr.error || sr.error || ir.error || payr.error || mr.error;
     setError(err ? err.message : null);
     setProducts((pr.data || []).map(mapProduct));
     setCustomers((cr.data || []).map(mapCustomer));
     setSales((sr.data || []).map(mapSale));
+    setInvoices((ir.data || []).map(mapInvoice));
     setPayments((payr.data || []).map(mapPayment));
     setStockMovements((mr.data || []).map(mapMovement));
     setLoading(false);
@@ -87,6 +97,7 @@ export function DataProvider({ children }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "products" }, (p) => applyChange(setProducts, mapProduct, p))
       .on("postgres_changes", { event: "*", schema: "public", table: "customers" }, (p) => applyChange(setCustomers, mapCustomer, p))
       .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, (p) => applyChange(setSales, mapSale, p))
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales_invoices" }, (p) => applyChange(setInvoices, mapInvoice, p))
       .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, (p) => applyChange(setPayments, mapPayment, p))
       .on("postgres_changes", { event: "*", schema: "public", table: "stock_movements" }, (p) => applyChange(setStockMovements, mapMovement, p))
       .subscribe();
@@ -111,17 +122,26 @@ export function DataProvider({ children }) {
   function salePaymentStatus(sale) {
     return calc.salePaymentStatus(sale, products, payments);
   }
+  function invoiceTotal(invoice) {
+    return calc.invoiceTotal(invoice, sales, products);
+  }
+  function invoicePaidAmount(invoiceId) {
+    return calc.invoicePaidAmount(payments, invoiceId, sales);
+  }
+  function invoicePaymentStatus(invoice) {
+    return calc.invoicePaymentStatus(invoice, sales, products, payments);
+  }
   function salesForCustomer(customerId) {
     return calc.salesForCustomer(sales, customerId);
   }
   function getCustomerStats(customerId) {
-    return calc.getCustomerStats(customerId, sales, products, payments);
+    return calc.getCustomerStats(customerId, sales, products, payments, invoices);
   }
   function stockStatus(product) {
     return calc.stockStatus(product);
   }
   function dashboardTotals() {
-    return calc.dashboardTotals(products, customers, sales, payments);
+    return calc.dashboardTotals(products, customers, sales, payments, invoices);
   }
 
   async function uploadProductImage(productId, file) {
@@ -215,9 +235,9 @@ export function DataProvider({ children }) {
     setCustomers((prev) => prev.filter((c) => c.id !== id));
   }
 
-  async function createPayment({ saleId, amount, method, date }) {
+  async function createPayment({ saleId = null, invoiceId = null, amount, method, date }) {
     const id = newId("PM");
-    const row = { id, date: date || new Date().toISOString().slice(0, 10), sale_id: saleId, amount: Number(amount) || 0, method: method || "Cash on Delivery" };
+    const row = { id, date: date || new Date().toISOString().slice(0, 10), sale_id: saleId, invoice_id: invoiceId, amount: Number(amount) || 0, method: method || "Cash on Delivery" };
     const { error: err } = await supabase.from("payments").insert(row);
     if (err) throw err;
     setPayments((prev) => [mapPayment(row), ...prev]);
@@ -234,12 +254,12 @@ export function DataProvider({ children }) {
     const id = newId("SL");
     const date = new Date().toISOString().slice(0, 10);
     const quantity = Number(qty) || 1;
-    const row = { id, date, customer_id: customerId, product_id: productId, qty: quantity, status: "Order Placed" };
+    const product = productById(productId);
+    const row = { id, date, customer_id: customerId, product_id: productId, qty: quantity, unit_price: product?.price ?? null, status: "Order Placed" };
     const { error: err } = await supabase.from("sales").insert(row);
     if (err) throw err;
     setSales((prev) => [mapSale(row), ...prev]);
 
-    const product = productById(productId);
     if (product) {
       const newTaken = product.stockTaken + quantity;
       await supabase.from("products").update({ stock_taken: newTaken }).eq("id", productId);
@@ -251,6 +271,61 @@ export function DataProvider({ children }) {
       await createPayment({ saleId: id, amount, method: "Cash on Delivery", date });
     }
     return id;
+  }
+
+  async function createInvoice({ customerId, lines, discountAmount = 0, vatAmount = 0, paymentStatus = "Pending", partialAmount = 0, date }) {
+    const validLines = (lines || []).map((line) => {
+      const product = productById(line.productId);
+      const qty = Number(line.qty);
+      const price = Number(line.unitPrice ?? product?.price);
+      if (!product || !Number.isInteger(qty) || qty <= 0 || !Number.isFinite(price) || price < 0) throw new Error("Each invoice line needs a product, a whole-number quantity, and a valid price.");
+      return { product, productId: product.id, qty, unitPrice: price };
+    });
+    if (!customerId || validLines.length === 0) throw new Error("Choose a customer and add at least one product.");
+
+    const quantities = new Map();
+    for (const line of validLines) quantities.set(line.productId, (quantities.get(line.productId) || 0) + line.qty);
+    for (const [productId, qty] of quantities) {
+      const product = productById(productId);
+      if (qty > product.stockTotal - product.stockTaken) throw new Error(`${product.name} does not have enough stock.`);
+    }
+
+    const subtotal = validLines.reduce((sum, line) => sum + line.unitPrice * line.qty, 0);
+    const discount = Math.max(0, Number(discountAmount) || 0);
+    const vat = Math.max(0, Number(vatAmount) || 0);
+    const total = Math.max(0, subtotal - discount + vat);
+    const paid = paymentStatus === "Paid" ? total : paymentStatus === "Partial" ? Number(partialAmount) || 0 : 0;
+    if (!["Paid", "Partial", "Pending"].includes(paymentStatus) || paid < 0 || paid > total || (paymentStatus === "Partial" && paid <= 0)) {
+      throw new Error("Payment amount must be greater than zero and no more than the invoice total.");
+    }
+
+    const invoiceId = newId("INV");
+    const invoiceRow = { id: invoiceId, date: date || new Date().toISOString().slice(0, 10), customer_id: customerId, subtotal, discount_amount: discount, vat_amount: vat, total, payment_status: paymentStatus };
+    const saleRows = validLines.map((line, index) => ({ id: `${invoiceId}-L${index + 1}`, date: invoiceRow.date, customer_id: customerId, product_id: line.productId, qty: line.qty, unit_price: line.unitPrice, invoice_id: invoiceId, status: "Order Placed" }));
+    const changedStock = [];
+    try {
+      let result = await supabase.from("sales_invoices").insert(invoiceRow);
+      if (result.error) throw result.error;
+      result = await supabase.from("sales").insert(saleRows);
+      if (result.error) throw result.error;
+      for (const [productId, qty] of quantities) {
+        const product = productById(productId);
+        const newTaken = product.stockTaken + qty;
+        result = await supabase.from("products").update({ stock_taken: newTaken }).eq("id", productId);
+        if (result.error) throw result.error;
+        changedStock.push({ productId, previous: product.stockTaken });
+      }
+      if (paid > 0) await createPayment({ invoiceId, amount: paid, method: "Cash on Delivery", date: invoiceRow.date });
+    } catch (err) {
+      await supabase.from("payments").delete().eq("invoice_id", invoiceId);
+      await supabase.from("sales").delete().eq("invoice_id", invoiceId);
+      for (const stock of changedStock) await supabase.from("products").update({ stock_taken: stock.previous }).eq("id", stock.productId);
+      await supabase.from("sales_invoices").delete().eq("id", invoiceId);
+      await refresh();
+      throw err;
+    }
+    await refresh();
+    return invoiceId;
   }
 
   async function createStockMovement({ productId, type, qty, reference }) {
@@ -282,6 +357,7 @@ export function DataProvider({ children }) {
     products,
     customers,
     sales,
+    invoices,
     payments,
     stockMovements,
     loading,
@@ -292,6 +368,9 @@ export function DataProvider({ children }) {
     saleTotal,
     salePaidAmount,
     salePaymentStatus,
+    invoiceTotal,
+    invoicePaidAmount,
+    invoicePaymentStatus,
     salesForCustomer,
     getCustomerStats,
     stockStatus,
@@ -303,6 +382,7 @@ export function DataProvider({ children }) {
     updateCustomer,
     deleteCustomer,
     createSale,
+    createInvoice,
     createPayment,
     updatePayment,
     createStockMovement,

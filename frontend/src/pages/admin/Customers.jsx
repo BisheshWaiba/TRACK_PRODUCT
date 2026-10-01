@@ -94,9 +94,8 @@ export default function Customers() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-2 gap-3 sm:gap-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5">
         <div className="card"><span className="text-xs font-semibold text-muted">TO RECEIVE</span><div className="mt-1.5 font-display text-xl font-bold text-teal">{money(ledger.totalReceivable)}</div></div>
-        <div className="card"><span className="text-xs font-semibold text-muted">TO PAY</span><div className="mt-1.5 font-display text-xl font-bold text-danger">{money(ledger.totalPayable)}</div></div>
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

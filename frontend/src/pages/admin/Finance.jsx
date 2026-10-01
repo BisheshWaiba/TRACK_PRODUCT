@@ -25,6 +25,7 @@ const SHORTCUTS = [
   { to: "/purchases?add=1", label: "Purchase", icon: "cart" },
   { to: "/expenses?add=1", label: "Expenses", icon: "arrowUp" },
   { to: "/bank-accounts", label: "Bank Accounts", icon: "cashBank" },
+  { to: "/suppliers", label: "Suppliers", icon: "truck" },
   { to: "/inventory", label: "Inventory", icon: "layers" },
   { to: "/reports", label: "Report", icon: "chart" },
 ];
@@ -49,7 +50,7 @@ export default function Finance() {
           <span className="text-xs font-semibold text-muted">TO RECEIVE</span>
           <span className="font-display text-2xl font-bold text-teal">{money(ledger.totalReceivable)}</span>
         </Link>
-        <Link to="/customers" className="card flex flex-col gap-1.5 hover:bg-bg">
+        <Link to="/suppliers" className="card flex flex-col gap-1.5 hover:bg-bg">
           <span className="text-xs font-semibold text-muted">TO GIVE</span>
           <span className="font-display text-2xl font-bold text-danger">{money(ledger.totalPayable)}</span>
         </Link>
