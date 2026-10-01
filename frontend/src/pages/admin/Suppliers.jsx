@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import Icon from "../../components/icons/Icon";
 import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
@@ -84,9 +85,9 @@ export default function Suppliers() {
           const entry = ledger.byParty.get(supplier.id);
           const line = ledgerLine(entry);
           return <div key={supplier.id} className="grid min-w-[760px] grid-cols-[1.8fr_1.2fr_1.1fr_1.4fr_0.8fr] items-center gap-2 border-t border-border px-5 py-4 text-[13px] hover:bg-bg">
-            <div><div className="font-semibold">{supplier.name}</div><div className="text-[11.5px] text-muted">{supplier.contact}</div></div>
+            <Link to={`/suppliers/${supplier.id}`} className="min-w-0 hover:text-accent"><div className="font-semibold">{supplier.name}</div><div className="text-[11.5px] text-muted">{supplier.contact}</div></Link>
             <span>{supplier.phone}</span><span>{supplier.city || "—"}</span><Badge tone={line.tone}>{money(Math.max(entry?.payable || 0, 0))}</Badge>
-            <div className="flex gap-1.5"><button onClick={() => setEditTarget({ ...supplier })} title="Edit supplier" className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="edit" className="h-[13px] w-[13px] text-ink-soft" strokeWidth={1.7} /></button><button onClick={() => { setDeleteError(""); setDeleteTarget(supplier); }} title="Delete supplier" className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="trash" className="h-[13px] w-[13px] text-danger" strokeWidth={1.7} /></button></div>
+            <div className="flex gap-1.5"><button onClick={(event) => { event.preventDefault(); event.stopPropagation(); setEditTarget({ ...supplier }); }} title="Edit supplier" className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="edit" className="h-[13px] w-[13px] text-ink-soft" strokeWidth={1.7} /></button><button onClick={(event) => { event.preventDefault(); event.stopPropagation(); setDeleteError(""); setDeleteTarget(supplier); }} title="Delete supplier" className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="trash" className="h-[13px] w-[13px] text-danger" strokeWidth={1.7} /></button></div>
           </div>;
         })}
         {shown.length === 0 && <div className="px-5 py-8 text-center text-sm text-muted">No suppliers found.</div>}
@@ -96,8 +97,8 @@ export default function Suppliers() {
         {shown.map((supplier) => {
           const entry = ledger.byParty.get(supplier.id);
           return <div key={supplier.id} className="flex items-center justify-between rounded-xl2 border border-border bg-surface p-3">
-            <div className="min-w-0"><div className="truncate font-semibold">{supplier.name}</div><div className="truncate text-[12px] text-muted">{supplier.contact || supplier.phone || "No contact details"}</div></div>
-            <div className="flex flex-shrink-0 items-center gap-2"><span className="text-[13px] font-semibold text-danger">{money(Math.max(entry?.payable || 0, 0))}</span><button onClick={() => setEditTarget({ ...supplier })} title="Edit supplier" className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="edit" className="h-[14px] w-[14px] text-ink-soft" strokeWidth={1.7} /></button><button onClick={() => { setDeleteError(""); setDeleteTarget(supplier); }} title="Delete supplier" className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="trash" className="h-[14px] w-[14px] text-danger" strokeWidth={1.7} /></button></div>
+            <Link to={`/suppliers/${supplier.id}`} className="min-w-0 hover:text-accent"><div className="truncate font-semibold">{supplier.name}</div><div className="truncate text-[12px] text-muted">{supplier.contact || supplier.phone || "No contact details"}</div></Link>
+            <div className="flex flex-shrink-0 items-center gap-2"><span className="text-[13px] font-semibold text-danger">{money(Math.max(entry?.payable || 0, 0))}</span><button onClick={(event) => { event.preventDefault(); event.stopPropagation(); setEditTarget({ ...supplier }); }} title="Edit supplier" className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="edit" className="h-[14px] w-[14px] text-ink-soft" strokeWidth={1.7} /></button><button onClick={(event) => { event.preventDefault(); event.stopPropagation(); setDeleteError(""); setDeleteTarget(supplier); }} title="Delete supplier" className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="trash" className="h-[14px] w-[14px] text-danger" strokeWidth={1.7} /></button></div>
           </div>;
         })}
         {shown.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-8 text-center text-sm text-muted">No suppliers found.</div>}

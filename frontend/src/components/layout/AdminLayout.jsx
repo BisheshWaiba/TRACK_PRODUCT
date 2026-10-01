@@ -65,7 +65,7 @@ export default function AdminLayout() {
   }, [location.pathname]);
   const title =
     TITLES[location.pathname] ||
-    (location.pathname.startsWith("/customers/") ? "Customer Detail" : "BulkTrack Admin");
+    (location.pathname.startsWith("/customers/") ? "Customer Detail" : location.pathname.startsWith("/suppliers/") ? "Supplier Detail" : "BulkTrack Admin");
   const onAccount = location.pathname === "/account";
   const displayName = user?.user_metadata?.full_name || user?.email || "Wholesaler Admin";
   const displayRole = user?.user_metadata?.role || user?.email || "";
