@@ -139,7 +139,7 @@ export default function CustomerDetail() {
                   <Badge tone={payStatus === "Paid" ? "teal" : payStatus === "Partial" ? "slate" : "accent"}>{payStatus}</Badge>
                 </div>
                 <div className="flex items-center justify-between text-[12.5px] text-muted">
-                  <span>{s.date} · {s.qty} × {money(product.price)}</span>
+                  <span>{s.date} · {s.qty} × {money(s.unitPrice ?? product.price)}</span>
                   <span className="font-semibold text-ink">{money(saleTotal(s))}</span>
                 </div>
               </div>
