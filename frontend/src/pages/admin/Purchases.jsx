@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import Icon from "../../components/icons/Icon";
+import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
 import Field from "../../components/ui/Field";
 import FinanceCrumb from "../../components/ui/FinanceCrumb";
@@ -13,17 +14,23 @@ function blankItem() {
   return { key: ++itemSeq, name: "", qty: "1", rate: "", productId: null };
 }
 function blankForm() {
-  return { partyName: "", supplierId: null, billNo: "", billDate: today(), note: "", discountAmount: "", vatAmount: "", items: [blankItem()] };
+  return { partyName: "", supplierId: null, billNo: "", billDate: today(), note: "", discountAmount: "", vatAmount: "", items: [blankItem()], paymentStatus: "Pending", partialAmount: "", bankAccountId: "" };
+}
+function statusTone(status) {
+  return status === "Paid" ? "teal" : status === "Partial" ? "slate" : "accent";
 }
 
 export default function Purchases() {
   const { loading: dataLoading, products, createProduct, createStockMovement } = useData();
-  const { loading: financeLoading, transactions, suppliers, createSupplier, saveTransaction } = useFinance();
+  const { loading: financeLoading, transactions, suppliers, bankAccounts, createSupplier, saveTransaction, recordPayout, purchasePaidAmount, purchasePaymentStatus } = useFinance();
   const [searchParams, setSearchParams] = useSearchParams();
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(blankForm);
   const [saving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+  const [payTarget, setPayTarget] = useState(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [payError, setPayError] = useState("");
 
   // Reached from the Finance hub's "Purchase" shortcut with ?add=1 - jump
   // straight into the form instead of making a second click land on it.
@@ -115,7 +122,7 @@ export default function Purchases() {
       }
       let supplierId = form.supplierId;
       if (form.partyName.trim() && !supplierId) supplierId = await createSupplier({ name: form.partyName.trim() });
-      await saveTransaction({
+      const newId = await saveTransaction({
         type: "purchase",
         amount: grandTotal,
         note: form.note || null,
@@ -127,14 +134,54 @@ export default function Purchases() {
         vatAmount: vat,
         items: validItems.map((it) => ({ description: it.name.trim(), qty: it.qty, rate: it.rate, amount: it.qty * it.rate })),
       });
+      // Confirming it's paid (in full or in part) right when the bill is
+      // entered, instead of always booking it as a pure payable and making
+      // a cash purchase look identical to a 60-day credit one until someone
+      // separately records a payment. Linked to this exact bill via
+      // businessTransactionId so its own status (not just the supplier's
+      // aggregate balance) reflects it.
+      if (form.paymentStatus !== "Pending") {
+        const amount = form.paymentStatus === "Paid" ? grandTotal : Math.min(Math.max(Number(form.partialAmount) || 0, 0.01), grandTotal);
+        await recordPayout({ supplierId, amount, date: form.billDate, bankAccountId: form.bankAccountId || null, businessTransactionId: newId });
+      }
       // Stays open instead of closing - entering a stack of paper bills
       // one after another shouldn't mean re-opening this modal every time.
       // Bill date carries over (a batch is usually all from today); the
-      // supplier, items and bill number reset since the next bill is
-      // rarely the same one.
+      // supplier, items, bill number and payment status reset since the
+      // next bill is rarely the same one and defaulting to "already paid"
+      // would be an easy way to silently mark something paid that isn't.
       setForm({ ...blankForm(), billDate: form.billDate });
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 4000);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function openPay(purchase) {
+    setPayError("");
+    const remaining = purchase.amount - purchasePaidAmount(purchase.id);
+    setPayAmount(remaining > 0 ? String(remaining) : "");
+    setPayTarget(purchase);
+  }
+
+  async function handlePaySave(e) {
+    e.preventDefault();
+    const amount = Number(payAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setPayError("Amount must be greater than 0.");
+      return;
+    }
+    setSaving(true);
+    setPayError("");
+    try {
+      await recordPayout({
+        supplierId: payTarget.supplierId, amount, date: today(),
+        businessTransactionId: payTarget.id,
+      });
+      setPayTarget(null);
+    } catch (err) {
+      setPayError(err.message || "Could not record this payment.");
     } finally {
       setSaving(false);
     }
@@ -152,35 +199,55 @@ export default function Purchases() {
 
       {/* Desktop table */}
       <div className="hidden overflow-x-auto rounded-xl2 border border-border bg-surface sm:block">
-        <div className="grid min-w-[800px] grid-cols-[1fr_1.6fr_1.6fr_0.9fr_1fr] gap-2 bg-surface-2 px-5 py-3.5 text-[11px] font-bold tracking-wide text-muted">
-          <span>BILL #</span><span>SUPPLIER</span><span>DATE</span><span>ITEMS</span><span>AMOUNT</span>
+        <div className="grid min-w-[900px] grid-cols-[1fr_1.4fr_1.3fr_0.8fr_1fr_1fr_0.7fr] gap-2 bg-surface-2 px-5 py-3.5 text-[11px] font-bold tracking-wide text-muted">
+          <span>BILL #</span><span>SUPPLIER</span><span>DATE</span><span>ITEMS</span><span>AMOUNT</span><span>STATUS</span><span>ACTION</span>
         </div>
-        {purchases.map((t) => (
-          <div key={t.id} className="grid min-w-[800px] grid-cols-[1fr_1.6fr_1.6fr_0.9fr_1fr] items-center gap-2 border-t border-border px-5 py-3.5 text-[13px] hover:bg-bg">
-            <span className="font-semibold">{t.billNo || "—"}</span>
-            <span>{t.partyName || "Walk-in supplier"}</span>
-            <span className="text-ink-soft">{t.billDate}</span>
-            <span className="text-muted">{t.items.length} item{t.items.length === 1 ? "" : "s"}</span>
-            <span className="font-semibold">{money(t.amount)}</span>
-          </div>
-        ))}
+        {purchases.map((t) => {
+          const status = purchasePaymentStatus(t);
+          return (
+            <div key={t.id} className="grid min-w-[900px] grid-cols-[1fr_1.4fr_1.3fr_0.8fr_1fr_1fr_0.7fr] items-center gap-2 border-t border-border px-5 py-3.5 text-[13px] hover:bg-bg">
+              <span className="font-semibold">{t.billNo || "—"}</span>
+              <span>{t.partyName || "Walk-in supplier"}</span>
+              <span className="text-ink-soft">{t.billDate}</span>
+              <span className="text-muted">{t.items.length} item{t.items.length === 1 ? "" : "s"}</span>
+              <span className="font-semibold">{money(t.amount)}</span>
+              <Badge tone={statusTone(status)}>{status}</Badge>
+              {status !== "Paid" && t.supplierId ? (
+                <button onClick={() => openPay(t)} className="text-left text-[12.5px] font-semibold text-accent hover:underline">Pay</button>
+              ) : (
+                <span className="text-muted">—</span>
+              )}
+            </div>
+          );
+        })}
         {purchases.length === 0 && <div className="px-5 py-8 text-center text-sm text-muted">No purchases recorded yet.</div>}
       </div>
 
       {/* Mobile cards */}
       <div className="flex flex-col gap-2 sm:hidden">
-        {purchases.map((t) => (
-          <div key={t.id} className="flex flex-col gap-2 rounded-xl2 border border-border bg-surface p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="truncate font-semibold">{t.partyName || "Walk-in supplier"}</div>
-                <div className="text-[12.5px] text-muted">{t.billNo ? `Bill #${t.billNo} · ` : ""}{t.billDate}</div>
+        {purchases.map((t) => {
+          const status = purchasePaymentStatus(t);
+          return (
+            <div key={t.id} className="flex flex-col gap-2 rounded-xl2 border border-border bg-surface p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate font-semibold">{t.partyName || "Walk-in supplier"}</div>
+                  <div className="text-[12.5px] text-muted">{t.billNo ? `Bill #${t.billNo} · ` : ""}{t.billDate}</div>
+                </div>
+                <div className="flex flex-shrink-0 flex-col items-end gap-1">
+                  <span className="font-semibold">{money(t.amount)}</span>
+                  <Badge tone={statusTone(status)}>{status}</Badge>
+                </div>
               </div>
-              <span className="flex-shrink-0 font-semibold">{money(t.amount)}</span>
+              <div className="flex items-center justify-between text-[12.5px] text-muted">
+                <span>{t.items.length} item{t.items.length === 1 ? "" : "s"}</span>
+                {status !== "Paid" && t.supplierId && (
+                  <button onClick={() => openPay(t)} className="font-semibold text-accent">Pay</button>
+                )}
+              </div>
             </div>
-            <div className="text-[12.5px] text-muted">{t.items.length} item{t.items.length === 1 ? "" : "s"}</div>
-          </div>
-        ))}
+          );
+        })}
         {purchases.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-8 text-center text-sm text-muted">No purchases recorded yet.</div>}
       </div>
 
@@ -264,6 +331,38 @@ export default function Purchases() {
             <span className="font-display text-lg font-bold">{money(grandTotal)}</span>
           </div>
 
+          <div className="flex flex-col gap-2">
+            <span className="text-[13px] font-semibold">Payment Status</span>
+            <div className="flex gap-2.5">
+              {["Pending", "Partial", "Paid"].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setForm({ ...form, paymentStatus: s, partialAmount: s === "Partial" && !form.partialAmount ? String(Math.round(grandTotal / 2)) : form.partialAmount })}
+                  className={`flex-1 rounded-lg border py-2.5 text-[13px] font-semibold ${
+                    form.paymentStatus === s ? "border-[1.5px] border-teal bg-teal-soft text-teal" : "border-border"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+            {form.paymentStatus !== "Pending" && (
+              <div className="flex flex-col gap-3.5 pt-1 sm:flex-row">
+                {form.paymentStatus === "Partial" && (
+                  <Field label="Amount Paid Now" type="number" min="0.01" step="0.01" className="flex-1" value={form.partialAmount} onChange={(e) => setForm({ ...form, partialAmount: e.target.value })} required />
+                )}
+                <label className="flex flex-1 flex-col gap-2">
+                  <span className="text-[13px] font-semibold">Paid From</span>
+                  <select className="field" value={form.bankAccountId} onChange={(e) => setForm({ ...form, bankAccountId: e.target.value })}>
+                    <option value="">Cash</option>
+                    {bankAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </label>
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-2.5">
             <button type="button" onClick={closeModal} className="btn-ghost flex-1">Done</button>
             <button type="submit" disabled={saving || grandTotal <= 0} className="btn-primary flex-1 disabled:opacity-60">
@@ -271,6 +370,26 @@ export default function Purchases() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={!!payTarget} onClose={() => setPayTarget(null)} title="Record Payment" width="max-w-[420px]">
+        {payTarget && (
+          <form onSubmit={handlePaySave} className="flex flex-col gap-4">
+            <div className="rounded-lg bg-surface-2 px-4 py-3 text-[13px]">
+              <div className="font-semibold">{payTarget.partyName || "Walk-in supplier"}{payTarget.billNo ? ` · Bill #${payTarget.billNo}` : ""}</div>
+              <div className="mt-1 flex justify-between text-muted">
+                <span>Bill total {money(payTarget.amount)}</span>
+                <span>Already paid {money(purchasePaidAmount(payTarget.id))}</span>
+              </div>
+            </div>
+            {payError && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-dark">{payError}</p>}
+            <Field label="Amount (NPR)" type="number" min="0.01" step="0.01" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} required />
+            <div className="flex gap-2.5">
+              <button type="button" onClick={() => setPayTarget(null)} className="btn-ghost flex-1">Cancel</button>
+              <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving…" : "Save Payment"}</button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

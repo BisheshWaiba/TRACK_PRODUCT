@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useData } from "./DataContext";
-import { accountBalances, dayBook, partyBalances, profitAndLoss, receivedAndPaid } from "../lib/finance";
+import { accountBalances, dayBook, partyBalances, profitAndLoss, purchasePaidAmount, purchasePaymentStatus, receivedAndPaid } from "../lib/finance";
 import { groupSalesByInvoice } from "../lib/calculations";
 
 // The books. Kept apart from DataContext deliberately: that one is about
@@ -43,6 +43,7 @@ function mapVendorEntry(e) {
   return {
     id: e.id, vendorId: e.vendor_id, supplierId: e.supplier_id || e.vendor_id, entryType: e.entry_type, amount: Number(e.amount), note: e.note,
     source: e.source, sourceType: e.source_type, sourceId: e.source_id, bankAccountId: e.bank_account_id,
+    businessTransactionId: e.business_transaction_id,
     entryDate: e.entry_date, receiptNo: e.receipt_no, createdAt: e.created_at,
   };
 }
@@ -165,6 +166,13 @@ export function FinanceProvider({ children }) {
     return dayBook(book, day);
   }
 
+  function getPurchasePaidAmount(purchaseId) {
+    return purchasePaidAmount(vendorEntries, purchaseId);
+  }
+  function getPurchasePaymentStatus(purchase) {
+    return purchasePaymentStatus(purchase, vendorEntries);
+  }
+
   // ---- writes -------------------------------------------------------
   // Trigger-written rows (source 'booking') are refused by RLS, so the
   // screens must not offer to edit them; canEdit says which is which.
@@ -180,16 +188,20 @@ export function FinanceProvider({ children }) {
     await refresh();
   }
 
-  async function recordPayout({ supplierId, vendorId, amount, date, receiptNo, note, bankAccountId }) {
+  async function recordPayout({ supplierId, vendorId, amount, date, receiptNo, note, bankAccountId, businessTransactionId }) {
     const { error: err } = await supabase.from("vendor_ledger_entries").insert({
       vendor_id: vendorId || null, supplier_id: supplierId || null, entry_type: "credit", amount: Number(amount), note: note || null,
       source: "manual", bank_account_id: bankAccountId || null, entry_date: date || today(),
-      receipt_no: receiptNo || null,
+      receipt_no: receiptNo || null, business_transaction_id: businessTransactionId || null,
     });
     if (err) throw err;
     await refresh();
   }
 
+  // Returns the row's id either way, so a caller that just created a
+  // purchase bill can immediately record a payment linked to it (see
+  // recordPayout's businessTransactionId) without a second round trip to
+  // look the id back up.
   async function saveTransaction(input, id) {
     const row = {
       type: input.type,
@@ -209,12 +221,17 @@ export function FinanceProvider({ children }) {
       payment_mode: input.type === "expense" && input.bankAccountId ? "bank" : "cash",
       bank_account_id: input.type === "expense" ? input.bankAccountId || null : null,
     };
-    const q = id
-      ? supabase.from("business_transactions").update(row).eq("id", id)
-      : supabase.from("business_transactions").insert(row);
-    const { error: err } = await q;
+    if (id) {
+      const { error: err } = await supabase.from("business_transactions").update(row).eq("id", id);
+      if (err) throw err;
+      await refresh();
+      return id;
+    }
+    const newId = crypto.randomUUID();
+    const { error: err } = await supabase.from("business_transactions").insert({ id: newId, ...row });
     if (err) throw err;
     await refresh();
+    return newId;
   }
 
   async function updateEntry(table, id, patch) {
@@ -294,6 +311,7 @@ export function FinanceProvider({ children }) {
     customerEntries, vendorEntries, transfers,
     loading, error, refresh,
     balances, ledger, report, dayBookFor: book_, canEdit,
+    purchasePaidAmount: getPurchasePaidAmount, purchasePaymentStatus: getPurchasePaymentStatus,
     nextReceiptNo: () => nextNumber(customerEntries),
     nextPaymentNo: () => nextNumber(vendorEntries),
     recordReceipt, recordPayout, saveTransaction, updateEntry, deleteRow,

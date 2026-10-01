@@ -28,6 +28,27 @@ export function settledOnSpot(t) {
   return (t.type === "sale" || t.type === "purchase") && !t.partyId && !t.supplierId;
 }
 
+// Mirrors invoicePaidAmount/invoicePaymentStatus on the customer side
+// (lib/calculations.js) - the two can't share code because one reads
+// `payments` keyed by invoiceId and the other reads `vendorEntries` keyed
+// by businessTransactionId, but the shape of the answer is the same:
+// a bill is Paid/Partial/Pending by how much of ITS amount has actually
+// been paid, not by the supplier's aggregate running balance. A payment
+// made without picking a bill (businessTransactionId null) still counts
+// toward that balance - it just can't confirm any one bill as paid.
+export function purchasePaidAmount(vendorEntries, purchaseId) {
+  return vendorEntries
+    .filter((e) => e.businessTransactionId === purchaseId && e.entryType === "credit")
+    .reduce((sum, e) => sum + e.amount, 0);
+}
+
+export function purchasePaymentStatus(purchase, vendorEntries) {
+  const paid = purchasePaidAmount(vendorEntries, purchase.id);
+  if (paid <= 0) return "Pending";
+  if (paid < purchase.amount) return "Partial";
+  return "Paid";
+}
+
 const CASH = "cash";
 const key = (bankAccountId) => bankAccountId || CASH;
 
