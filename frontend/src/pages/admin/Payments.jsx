@@ -4,12 +4,13 @@ import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
 import Field from "../../components/ui/Field";
 import { money } from "../../lib/format";
+import { groupSalesByInvoice } from "../../lib/calculations";
 import { useData } from "../../context/DataContext";
 
 const TABS = ["All", "Paid", "Partial", "Pending"];
 
 export default function Payments() {
-  const { sales, payments, customerById, saleTotal, salePaidAmount, salePaymentStatus, createPayment, updatePayment, loading } = useData();
+  const { sales, invoices, payments, customerById, saleTotal, invoiceTotal, invoicePaidAmount, createPayment, updatePayment, loading } = useData();
   const [tab, setTab] = useState("All");
   const [modalOpen, setModalOpen] = useState(false);
   const [activeSaleId, setActiveSaleId] = useState(null);
@@ -19,20 +20,23 @@ export default function Payments() {
   const [saving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
 
-  const rows = sales.filter((s) => tab === "All" || salePaymentStatus(s) === tab);
+  const rows = groupSalesByInvoice(sales, invoices).map((invoice) => {
+    const paid = invoice.legacy ? payments.filter((p) => p.saleId === invoice.lines[0].id).reduce((sum, p) => sum + p.amount, 0) : invoicePaidAmount(invoice.id);
+    return { ...invoice, total: invoice.legacy ? saleTotal(invoice.lines[0]) : invoiceTotal(invoice), paid, status: paid <= 0 ? "Pending" : paid < (invoice.legacy ? saleTotal(invoice.lines[0]) : invoiceTotal(invoice)) ? "Partial" : "Paid" };
+  }).filter((invoice) => tab === "All" || invoice.status === tab);
   const totalReceived = payments.reduce((s, p) => s + p.amount, 0);
-  const totalSales = sales.reduce((s, sale) => s + saleTotal(sale), 0);
-  const partial = sales.filter((s) => salePaymentStatus(s) === "Partial").reduce((s, sale) => s + salePaidAmount(sale.id), 0);
+  const totalSales = rows.reduce((sum, invoice) => sum + invoice.total, 0);
+  const partial = rows.filter((invoice) => invoice.status === "Partial").reduce((sum, invoice) => sum + invoice.paid, 0);
   const pending = totalSales - totalReceived;
 
-  function latestPaymentFor(saleId) {
-    return payments.filter((p) => p.saleId === saleId)[0] || null;
+  function latestPaymentFor(invoice) {
+    return payments.filter((p) => invoice.invoiceId ? p.invoiceId === invoice.invoiceId : p.saleId === invoice.lines[0].id)[0] || null;
   }
 
-  function openRecord(saleId) {
-    setActiveSaleId(saleId);
-    const sale = sales.find((s) => s.id === saleId);
-    setAmount(String(saleTotal(sale) - salePaidAmount(saleId)));
+  function openRecord(invoiceId) {
+    setActiveSaleId(invoiceId);
+    const invoice = rows.find((row) => row.id === invoiceId);
+    setAmount(String(invoice.total - invoice.paid));
     setJustSaved(false);
     setModalOpen(true);
   }
@@ -47,13 +51,14 @@ export default function Payments() {
     const amt = Number(amount) || 0;
     if (amt <= 0 || !activeSaleId) return;
     setSaving(true);
-    await createPayment({ saleId: activeSaleId, amount: amt, method });
+    const invoice = rows.find((row) => row.id === activeSaleId);
+    await createPayment({ invoiceId: invoice.invoiceId, saleId: invoice.legacy ? invoice.lines[0].id : null, amount: amt, method });
     setSaving(false);
     // Fully paid - nothing left to do, close. Still a balance (a partial
     // payment, or a follow-up on one) - stay open with what's left
     // pre-filled, so correcting or adding a second payment doesn't mean
     // reopening this and re-picking the sale.
-    const remaining = saleTotal(activeSale) - (salePaidAmount(activeSaleId) + amt);
+    const remaining = activeSale.total - (activeSale.paid + amt);
     if (remaining <= 0) {
       setModalOpen(false);
     } else {
@@ -63,10 +68,11 @@ export default function Payments() {
     }
   }
 
-  function openEditPayment(saleId) {
-    const existing = latestPaymentFor(saleId);
+  function openEditPayment(invoiceId) {
+    const invoice = rows.find((row) => row.id === invoiceId);
+    const existing = latestPaymentFor(invoice);
     if (!existing) return;
-    setEditPayment({ id: existing.id, saleId, amount: String(existing.amount), method: existing.method, date: existing.date });
+    setEditPayment({ id: existing.id, invoiceId, amount: String(existing.amount), method: existing.method, date: existing.date });
   }
 
   async function handleEditPaymentSave(e) {
@@ -77,10 +83,10 @@ export default function Payments() {
     setEditPayment(null);
   }
 
-  const activeSale = sales.find((s) => s.id === activeSaleId);
-  const editSale = editPayment ? sales.find((s) => s.id === editPayment.saleId) : null;
-  const editOtherPaid = editPayment && editSale ? salePaidAmount(editSale.id) - Number(latestPaymentFor(editSale.id)?.amount || 0) : 0;
-  const editNewBalance = editSale ? saleTotal(editSale) - editOtherPaid - (Number(editPayment?.amount) || 0) : 0;
+  const activeSale = rows.find((invoice) => invoice.id === activeSaleId);
+  const editSale = editPayment ? rows.find((invoice) => invoice.id === editPayment.invoiceId) : null;
+  const editOtherPaid = editPayment && editSale ? editSale.paid - Number(latestPaymentFor(editSale)?.amount || 0) : 0;
+  const editNewBalance = editSale ? editSale.total - editOtherPaid - (Number(editPayment?.amount) || 0) : 0;
 
   if (loading) return <div className="p-8 text-sm text-muted">Loading payments…</div>;
 
@@ -107,10 +113,10 @@ export default function Payments() {
         </div>
         {rows.map((s) => {
           const customer = customerById(s.customerId);
-          const total = saleTotal(s);
-          const paid = salePaidAmount(s.id);
+          const total = s.total;
+          const paid = s.paid;
           const balance = total - paid;
-          const status = salePaymentStatus(s);
+          const status = s.status;
           return (
             <div key={s.id} className="grid min-w-[960px] grid-cols-[0.8fr_1.2fr_0.8fr_1fr_1fr_1fr_1fr_1.1fr] items-center gap-2 border-t border-border px-5 py-3.5 text-[13px] hover:bg-bg">
               <span className="text-ink-soft">{s.date}</span>
@@ -142,10 +148,10 @@ export default function Payments() {
       <div className="flex flex-col gap-2 sm:hidden">
         {rows.map((s) => {
           const customer = customerById(s.customerId);
-          const total = saleTotal(s);
-          const paid = salePaidAmount(s.id);
+          const total = s.total;
+          const paid = s.paid;
           const balance = total - paid;
-          const status = salePaymentStatus(s);
+          const status = s.status;
           return (
             <div key={s.id} className="flex flex-col gap-2 rounded-xl2 border border-border bg-surface p-3">
               <div className="flex items-start justify-between gap-2">
@@ -192,15 +198,15 @@ export default function Payments() {
             <div className="flex flex-col gap-3.5 rounded-xl bg-surface-2 p-4 sm:flex-row">
               <div className="flex-1">
                 <div className="text-[11px] font-semibold text-muted">TOTAL AMOUNT</div>
-                <div className="mt-0.5 text-[15px] font-bold">{money(saleTotal(activeSale))}</div>
+                <div className="mt-0.5 text-[15px] font-bold">{money(activeSale.total)}</div>
               </div>
               <div className="flex-1">
                 <div className="text-[11px] font-semibold text-muted">ALREADY PAID</div>
-                <div className="mt-0.5 text-[15px] font-bold">{money(salePaidAmount(activeSale.id))}</div>
+                <div className="mt-0.5 text-[15px] font-bold">{money(activeSale.paid)}</div>
               </div>
               <div className="flex-1">
                 <div className="text-[11px] font-semibold text-accent-text">BALANCE DUE</div>
-                <div className="mt-0.5 text-[15px] font-bold text-accent-text">{money(saleTotal(activeSale) - salePaidAmount(activeSale.id))}</div>
+                <div className="mt-0.5 text-[15px] font-bold text-accent-text">{money(activeSale.total - activeSale.paid)}</div>
               </div>
             </div>
             <div className="flex flex-col gap-3.5 sm:flex-row">
@@ -229,7 +235,7 @@ export default function Payments() {
             <div className="flex flex-col gap-3.5 rounded-xl bg-surface-2 p-4 sm:flex-row">
               <div className="flex-1">
                 <div className="text-[11px] font-semibold text-muted">TOTAL AMOUNT</div>
-                <div className="mt-0.5 text-[15px] font-bold">{money(saleTotal(editSale))}</div>
+                <div className="mt-0.5 text-[15px] font-bold">{money(editSale.total)}</div>
               </div>
               <div className="flex-1">
                 <div className="text-[11px] font-semibold text-accent-text">NEW BALANCE</div>

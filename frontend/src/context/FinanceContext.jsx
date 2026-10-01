@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { supabase } from "../lib/supabaseClient";
 import { useData } from "./DataContext";
 import { accountBalances, dayBook, partyBalances, profitAndLoss, receivedAndPaid } from "../lib/finance";
+import { groupSalesByInvoice } from "../lib/calculations";
 
 // The books. Kept apart from DataContext deliberately: that one is about
 // what was sold and shipped, this one is about what it did to the money,
@@ -60,7 +61,7 @@ export function today() {
 }
 
 export function FinanceProvider({ children }) {
-  const { customers, sales, saleTotal } = useData();
+  const { customers, sales, invoices, saleTotal, invoiceTotal } = useData();
 
   const [bankAccounts, setBankAccounts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -147,10 +148,10 @@ export function FinanceProvider({ children }) {
   const ledger = useMemo(() => partyBalances(customerEntries, vendorEntries), [customerEntries, vendorEntries]);
 
   const saleValues = useMemo(
-    () => sales.map((s) => ({ date: s.date, value: saleTotal(s) })),
+    () => groupSalesByInvoice(sales, invoices).map((invoice) => ({ date: invoice.date, value: invoice.legacy ? saleTotal(invoice.lines[0]) : invoiceTotal(invoice) })),
     // saleTotal closes over products, which change with sales rarely
     // enough that recomputing on the sales list is the right trade.
-    [sales, saleTotal]
+    [sales, invoices, saleTotal, invoiceTotal]
   );
 
   function report(range) {

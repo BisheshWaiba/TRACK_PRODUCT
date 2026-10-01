@@ -34,7 +34,7 @@ export default function CustomerDetail() {
 
   const stats = getCustomerStats(customer.id);
   const custSales = salesForCustomer(customer.id);
-  const custPayments = payments.filter((p) => custSales.some((s) => s.id === p.saleId));
+  const custPayments = payments.filter((p) => custSales.some((s) => s.id === p.saleId) || custSales.some((s) => s.invoiceId && s.invoiceId === p.invoiceId));
   const partyEntry = ledger.byParty.get(customer.id);
   const line = ledgerLine(partyEntry);
   const custLedger = customerEntries.filter((e) => e.customerId === customer.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -121,7 +121,7 @@ export default function CustomerDetail() {
                 <span className="text-ink-soft">{s.date}</span>
                 <span>{product?.name}</span>
                 <span>{s.qty}</span>
-                <span>{money(product.price)}</span>
+                <span>{money(s.unitPrice ?? product.price)}</span>
                 <span className="font-semibold">{money(saleTotal(s))}</span>
                 <Badge tone={payStatus === "Paid" ? "teal" : payStatus === "Partial" ? "slate" : "accent"}>{payStatus}</Badge>
               </div>

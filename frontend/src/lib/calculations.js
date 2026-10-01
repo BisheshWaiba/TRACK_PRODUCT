@@ -11,6 +11,7 @@ export function customerById(customers, id) {
 }
 
 export function saleTotal(sale, products) {
+  if (sale.unitPrice != null) return Number(sale.unitPrice) * sale.qty;
   const product = productById(products, sale.productId);
   return product ? product.price * sale.qty : 0;
 }
@@ -27,14 +28,48 @@ export function salePaymentStatus(sale, products, payments) {
   return "Paid";
 }
 
+export function invoiceTotal(invoice, sales, products) {
+  if (invoice?.total != null) return Number(invoice.total);
+  return sales.filter((sale) => sale.invoiceId === invoice?.id).reduce((sum, sale) => sum + saleTotal(sale, products), 0);
+}
+
+export function invoicePaidAmount(payments, invoiceId, sales = []) {
+  const saleIds = new Set(sales.filter((sale) => sale.invoiceId === invoiceId).map((sale) => sale.id));
+  return payments
+    .filter((payment) => payment.invoiceId === invoiceId || (!payment.invoiceId && saleIds.has(payment.saleId)))
+    .reduce((sum, payment) => sum + payment.amount, 0);
+}
+
+export function invoicePaymentStatus(invoice, sales, products, payments) {
+  const total = invoiceTotal(invoice, sales, products);
+  const paid = invoicePaidAmount(payments, invoice.id, sales);
+  if (paid <= 0) return "Pending";
+  if (paid < total) return "Partial";
+  return "Paid";
+}
+
+export function invoiceLines(invoiceId, sales) {
+  return sales.filter((sale) => sale.invoiceId === invoiceId);
+}
+
+export function groupSalesByInvoice(sales, invoices = []) {
+  const byId = new Map(invoices.map((invoice) => [invoice.id, { ...invoice, lines: [] }]));
+  for (const sale of sales) {
+    if (sale.invoiceId && byId.has(sale.invoiceId)) byId.get(sale.invoiceId).lines.push(sale);
+    else byId.set(sale.id, { id: sale.id, date: sale.date, customerId: sale.customerId, lines: [sale], legacy: true });
+  }
+  return [...byId.values()].filter((invoice) => invoice.lines.length > 0);
+}
+
 export function salesForCustomer(sales, customerId) {
   return sales.filter((s) => s.customerId === customerId);
 }
 
-export function getCustomerStats(customerId, sales, products, payments) {
+export function getCustomerStats(customerId, sales, products, payments, invoices = []) {
   const custSales = salesForCustomer(sales, customerId);
-  const totalPurchases = custSales.reduce((sum, s) => sum + saleTotal(s, products), 0);
-  const totalPaid = custSales.reduce((sum, s) => sum + salePaidAmount(payments, s.id), 0);
+  const invoiceGroups = groupSalesByInvoice(custSales, invoices);
+  const totalPurchases = invoiceGroups.reduce((sum, invoice) => sum + (invoice.legacy ? saleTotal(invoice.lines[0], products) : invoiceTotal(invoice, custSales, products)), 0);
+  const totalPaid = invoiceGroups.reduce((sum, invoice) => sum + (invoice.legacy ? salePaidAmount(payments, invoice.lines[0].id) : invoicePaidAmount(payments, invoice.id, custSales)), 0);
   const unitsTaken = custSales.reduce((sum, s) => sum + s.qty, 0);
   return { totalPurchases, totalPaid, outstanding: totalPurchases - totalPaid, unitsTaken };
 }
@@ -47,7 +82,7 @@ export function stockStatus(product) {
   return { label: "In Stock", tone: "teal" };
 }
 
-export function dashboardTotals(products, customers, sales, payments) {
+export function dashboardTotals(products, customers, sales, payments, invoices = []) {
   const totalStock = products.reduce((s, p) => s + p.stockTotal, 0);
   const totalTaken = products.reduce((s, p) => s + p.stockTaken, 0);
   const totalAvailable = totalStock - totalTaken;
@@ -56,7 +91,7 @@ export function dashboardTotals(products, customers, sales, payments) {
     return a > 0 && a <= p.reorderAt;
   }).length;
   const outOfStock = products.filter((p) => p.stockTotal - p.stockTaken <= 0).length;
-  const totalSales = sales.reduce((s, sale) => s + saleTotal(sale, products), 0);
+  const totalSales = groupSalesByInvoice(sales, invoices).reduce((sum, invoice) => sum + (invoice.legacy ? saleTotal(invoice.lines[0], products) : invoiceTotal(invoice, invoice.lines, products)), 0);
   const amountReceived = payments.reduce((s, p) => s + p.amount, 0);
   const pendingPayments = totalSales - amountReceived;
   return {
