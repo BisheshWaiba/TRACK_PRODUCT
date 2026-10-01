@@ -24,7 +24,6 @@ const FINANCE_PATHS = ["/finance", "/daybook", "/purchases", "/expenses", "/rece
 // (with the logout button) - it doesn't need a second entry up here too.
 const NAV = [
   { to: "/", label: "Dashboard", icon: "grid", end: true },
-  { to: "/products", label: "Products", icon: "box" },
   { to: "/inventory", label: "Inventory", icon: "layers" },
   { to: "/customers", label: "Customers", icon: "users" },
   { to: "/sales", label: "Sales", icon: "receipt" },
@@ -35,7 +34,6 @@ const NAV = [
 
 const TITLES = {
   "/": "Dashboard",
-  "/products": "Products",
   "/inventory": "Inventory",
   "/customers": "Customers",
   "/sales": "Sales",

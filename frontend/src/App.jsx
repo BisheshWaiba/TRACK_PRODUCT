@@ -8,7 +8,6 @@ import RequireAuth from "./components/RequireAuth";
 import AdminLayout from "./components/layout/AdminLayout";
 
 import AdminDashboard from "./pages/admin/Dashboard";
-import Products from "./pages/admin/Products";
 import Inventory from "./pages/admin/Inventory";
 import Customers from "./pages/admin/Customers";
 import CustomerDetail from "./pages/admin/CustomerDetail";
@@ -56,7 +55,6 @@ export default function App() {
             }
           >
             <Route index element={<AdminDashboard />} />
-            <Route path="products" element={<Products />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="customers" element={<Customers />} />
             <Route path="customers/:id" element={<CustomerDetail />} />
