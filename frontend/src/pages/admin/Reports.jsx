@@ -3,14 +3,27 @@ import Icon from "../../components/icons/Icon";
 import Badge from "../../components/ui/Badge";
 import { money } from "../../lib/format";
 import { useData } from "../../context/DataContext";
+import { useFinance, today } from "../../context/FinanceContext";
 
-const TABS = ["Sales Report", "Inventory Report", "Payment Report", "Stock Movement History"];
+const TABS = ["Profit & Loss", "Sales Report", "Inventory Report", "Payment Report", "Stock Movement History"];
+const PERIODS = ["This Month", "This Year", "All Time"];
+
+function periodRange(period) {
+  const now = new Date();
+  if (period === "This Month") return { from: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`, to: today() };
+  if (period === "This Year") return { from: `${now.getFullYear()}-01-01`, to: today() };
+  return {};
+}
 
 export default function Reports() {
   const { products, customers, sales, stockMovements, productById, saleTotal, getCustomerStats, loading } = useData();
-  const [tab, setTab] = useState("Sales Report");
+  const { balances, report, loading: financeLoading } = useFinance();
+  const [tab, setTab] = useState("Profit & Loss");
+  const [period, setPeriod] = useState("This Month");
 
-  if (loading) return <div className="p-8 text-sm text-muted">Loading reports…</div>;
+  if (loading || financeLoading) return <div className="p-8 text-sm text-muted">Loading reports…</div>;
+
+  const pl = report(periodRange(period));
 
   const topProducts = [...products]
     .map((p) => ({ ...p, revenue: sales.filter((s) => s.productId === p.id).reduce((sum, s) => sum + saleTotal(s), 0) }))
@@ -42,6 +55,36 @@ export default function Reports() {
           </button>
         ))}
       </div>
+
+      {tab === "Profit & Loss" && (
+        <div className="flex flex-col gap-5">
+          <div className="flex gap-2">
+            {PERIODS.map((p) => (
+              <button key={p} onClick={() => setPeriod(p)} className={`rounded-full px-4 py-2 text-[13px] font-semibold ${period === p ? "bg-ink text-white" : "bg-surface-2 hover:bg-border"}`}>
+                {p}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+            <div className="card"><span className="text-xs font-semibold text-muted">SALES</span><div className="mt-1.5 font-display text-xl font-bold">{money(pl.sale)}</div></div>
+            <div className="card"><span className="text-xs font-semibold text-muted">PURCHASES</span><div className="mt-1.5 font-display text-xl font-bold">{money(pl.purchase)}</div></div>
+            <div className="card"><span className="text-xs font-semibold text-muted">EXPENSES</span><div className="mt-1.5 font-display text-xl font-bold text-danger">{money(pl.expense)}</div></div>
+            <div className="card"><span className="text-xs font-semibold text-muted">GROSS PROFIT</span><div className={`mt-1.5 font-display text-xl font-bold ${pl.gross < 0 ? "text-danger" : "text-teal"}`}>{money(pl.gross)}</div></div>
+          </div>
+          <div className="card flex flex-col gap-1.5">
+            <span className="text-xs font-semibold text-muted">NET PROFIT</span>
+            <span className={`font-display text-2xl font-bold ${pl.net < 0 ? "text-danger" : "text-teal"}`}>{money(pl.net)}</span>
+            <span className="text-[12px] text-muted">Billed, not collected — sales count the moment they're made, not when payment arrives.</span>
+          </div>
+          <div className="card flex items-center justify-between">
+            <div>
+              <span className="text-xs font-semibold text-muted">AVAILABLE BALANCE (ALL TIME)</span>
+              <div className={`mt-1 font-display text-lg font-bold ${balances.total < 0 ? "text-danger" : ""}`}>{money(balances.total)}</div>
+            </div>
+            <span className="text-[12px] text-muted">Actual cash + bank, regardless of period above</span>
+          </div>
+        </div>
+      )}
 
       {tab === "Sales Report" && (
         <div className="flex flex-col gap-5">

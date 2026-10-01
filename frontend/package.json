@@ -7,10 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:e2e": "playwright test"
+
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

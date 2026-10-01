@@ -1,27 +1,49 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import Icon from "../icons/Icon";
 import NotificationBell from "./NotificationBell";
 import { useAuth } from "../../context/AuthContext";
 
+// Finance (Day Book, Purchases, Expenses, Received/Paid, Bank Accounts) is
+// one sidebar entry, matching the single "Finance" tab in the Jageer Nepal
+// app these were ported from - but unlike that app (a phone, one screen at
+// a time) this sidebar has room to list them inline too, via the arrow.
+// Ledger/Sales/Report aren't repeated here since Customers/Sales/Reports
+// already have their own top-level entries above.
+const FINANCE_CHILDREN = [
+  { to: "/daybook", label: "Day Book", icon: "cash" },
+  { to: "/received-payments?direction=received", label: "Received", icon: "arrowDown" },
+  { to: "/received-payments?direction=payment_out", label: "Payment Out", icon: "arrowUp" },
+  { to: "/purchases?add=1", label: "Purchase", icon: "cart" },
+  { to: "/expenses?add=1", label: "Expenses", icon: "arrowUp" },
+  { to: "/bank-accounts", label: "Bank Accounts", icon: "cashBank" },
+];
+const FINANCE_PATHS = ["/finance", "/daybook", "/purchases", "/expenses", "/received-payments", "/bank-accounts"];
+
+// Account keeps its own icon+name card at the bottom of the sidebar
+// (with the logout button) - it doesn't need a second entry up here too.
 const NAV = [
   { to: "/", label: "Dashboard", icon: "grid", end: true },
-  { to: "/products", label: "Products", icon: "box" },
   { to: "/inventory", label: "Inventory", icon: "layers" },
   { to: "/customers", label: "Customers", icon: "users" },
   { to: "/sales", label: "Sales", icon: "receipt" },
   { to: "/payments", label: "Payments", icon: "wallet" },
   { to: "/reports", label: "Reports", icon: "chart" },
-  { to: "/account", label: "Account", icon: "user" },
+  { to: "/finance", label: "Finance", icon: "cashBank", children: FINANCE_CHILDREN },
 ];
 
 const TITLES = {
   "/": "Dashboard",
-  "/products": "Products",
   "/inventory": "Inventory",
   "/customers": "Customers",
   "/sales": "Sales",
   "/payments": "Payments",
+  "/finance": "Finance",
+  "/purchases": "Purchases",
+  "/expenses": "Expenses",
+  "/received-payments": "Received / Paid",
+  "/bank-accounts": "Bank Accounts",
+  "/daybook": "Day Book",
   "/reports": "Reports",
   "/account": "Account",
 };
@@ -31,6 +53,14 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [navOpen, setNavOpen] = useState(false);
+  const isFinancePath = FINANCE_PATHS.includes(location.pathname);
+  const [financeOpen, setFinanceOpen] = useState(isFinancePath);
+  // Landing on a finance page - straight to it, or via a shortcut card -
+  // opens the group so the sidebar reflects where you are. It stays open
+  // after that until toggled; it doesn't snap back on every re-render.
+  useEffect(() => {
+    if (isFinancePath) setFinanceOpen(true);
+  }, [location.pathname]);
   const title =
     TITLES[location.pathname] ||
     (location.pathname.startsWith("/customers/") ? "Customer Detail" : "BulkTrack Admin");
@@ -68,22 +98,65 @@ export default function AdminLayout() {
             WHOLESALER ADMIN
           </div>
           <nav className="flex flex-col gap-1">
-            {NAV.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                onClick={() => setNavOpen(false)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-                    isActive ? "bg-accent font-semibold text-white" : "text-sidebar-text hover:bg-sidebar-hover"
-                  }`
-                }
-              >
-                <Icon name={item.icon} className="h-[18px] w-[18px]" strokeWidth={1.7} />
-                {item.label}
-              </NavLink>
-            ))}
+            {NAV.map((item) =>
+              item.children ? (
+                <div key={item.to} className="flex flex-col gap-1">
+                  <div
+                    className={`flex items-center gap-1 rounded-lg pr-1.5 text-sm transition-colors ${
+                      isFinancePath ? "bg-accent font-semibold text-white" : "text-sidebar-text hover:bg-sidebar-hover"
+                    }`}
+                  >
+                    <NavLink to={item.to} onClick={() => setNavOpen(false)} className="flex flex-1 items-center gap-3 px-3 py-2.5">
+                      <Icon name={item.icon} className="h-[18px] w-[18px]" strokeWidth={1.7} />
+                      {item.label}
+                    </NavLink>
+                    <button
+                      type="button"
+                      onClick={() => setFinanceOpen((o) => !o)}
+                      aria-label={financeOpen ? "Collapse Finance" : "Expand Finance"}
+                      aria-expanded={financeOpen}
+                      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md hover:bg-white/15"
+                    >
+                      <Icon name="arrowRight" className={`h-3.5 w-3.5 transition-transform ${financeOpen ? "rotate-90" : ""}`} strokeWidth={2.2} />
+                    </button>
+                  </div>
+                  {financeOpen && (
+                    <div className="ml-4 flex flex-col gap-1 border-l border-sidebar-border pl-3">
+                      {item.children.map((child) => (
+                        <NavLink
+                          key={child.to}
+                          to={child.to}
+                          onClick={() => setNavOpen(false)}
+                          className={({ isActive }) =>
+                            `flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] transition-colors ${
+                              isActive ? "bg-sidebar-hover font-semibold text-white" : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-text"
+                            }`
+                          }
+                        >
+                          <Icon name={child.icon} className="h-[15px] w-[15px]" strokeWidth={1.7} />
+                          {child.label}
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  onClick={() => setNavOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                      isActive ? "bg-accent font-semibold text-white" : "text-sidebar-text hover:bg-sidebar-hover"
+                    }`
+                  }
+                >
+                  <Icon name={item.icon} className="h-[18px] w-[18px]" strokeWidth={1.7} />
+                  {item.label}
+                </NavLink>
+              )
+            )}
           </nav>
         </div>
         <div

@@ -15,6 +15,7 @@ export default function Modal({ open, onClose, title, children, width = "max-w-[
           <span className="font-display text-lg font-bold">{title}</span>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-surface-2"
           >
             <Icon name="close" className="h-4 w-4" strokeWidth={1.8} />
