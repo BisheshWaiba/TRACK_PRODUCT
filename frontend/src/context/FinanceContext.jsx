@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useData } from "./DataContext";
-import { accountBalances, dayBook, partyBalances, profitAndLoss, receivedAndPaid } from "../lib/finance";
+import { accountBalances, cashflow, dayBook, partyBalances, profitAndLoss, purchasePaidAmount, purchasePaymentStatus, receivedAndPaid, receivedAndPaidEntries } from "../lib/finance";
 import { groupSalesByInvoice } from "../lib/calculations";
 
 // The books. Kept apart from DataContext deliberately: that one is about
@@ -43,6 +43,7 @@ function mapVendorEntry(e) {
   return {
     id: e.id, vendorId: e.vendor_id, supplierId: e.supplier_id || e.vendor_id, entryType: e.entry_type, amount: Number(e.amount), note: e.note,
     source: e.source, sourceType: e.source_type, sourceId: e.source_id, bankAccountId: e.bank_account_id,
+    businessTransactionId: e.business_transaction_id,
     entryDate: e.entry_date, receiptNo: e.receipt_no, createdAt: e.created_at,
   };
 }
@@ -140,8 +141,8 @@ export function FinanceProvider({ children }) {
   // Everything the screens read, worked out once. Customers and suppliers
   // remain separate because their ledgers represent opposite relationships.
   const book = useMemo(
-    () => ({ transactions, customerEntries, vendorEntries, transfers, accounts: bankAccounts, parties: customers, suppliers }),
-    [transactions, customerEntries, vendorEntries, transfers, bankAccounts, customers, suppliers]
+    () => ({ transactions, customerEntries, vendorEntries, transfers, accounts: bankAccounts, parties: customers, suppliers, invoices }),
+    [transactions, customerEntries, vendorEntries, transfers, bankAccounts, customers, suppliers, invoices]
   );
 
   const balances = useMemo(() => accountBalances(book), [book]);
@@ -161,8 +162,23 @@ export function FinanceProvider({ children }) {
     };
   }
 
+  function reportEntries(range) {
+    return receivedAndPaidEntries(book, range);
+  }
+
+  function cashflowFor(granularity, count) {
+    return cashflow(book, granularity, count);
+  }
+
   function book_(day) {
     return dayBook(book, day);
+  }
+
+  function getPurchasePaidAmount(purchaseId) {
+    return purchasePaidAmount(vendorEntries, purchaseId);
+  }
+  function getPurchasePaymentStatus(purchase) {
+    return purchasePaymentStatus(purchase, vendorEntries);
   }
 
   // ---- writes -------------------------------------------------------
@@ -180,16 +196,20 @@ export function FinanceProvider({ children }) {
     await refresh();
   }
 
-  async function recordPayout({ supplierId, vendorId, amount, date, receiptNo, note, bankAccountId }) {
+  async function recordPayout({ supplierId, vendorId, amount, date, receiptNo, note, bankAccountId, businessTransactionId }) {
     const { error: err } = await supabase.from("vendor_ledger_entries").insert({
       vendor_id: vendorId || null, supplier_id: supplierId || null, entry_type: "credit", amount: Number(amount), note: note || null,
       source: "manual", bank_account_id: bankAccountId || null, entry_date: date || today(),
-      receipt_no: receiptNo || null,
+      receipt_no: receiptNo || null, business_transaction_id: businessTransactionId || null,
     });
     if (err) throw err;
     await refresh();
   }
 
+  // Returns the row's id either way, so a caller that just created a
+  // purchase bill can immediately record a payment linked to it (see
+  // recordPayout's businessTransactionId) without a second round trip to
+  // look the id back up.
   async function saveTransaction(input, id) {
     const row = {
       type: input.type,
@@ -209,12 +229,17 @@ export function FinanceProvider({ children }) {
       payment_mode: input.type === "expense" && input.bankAccountId ? "bank" : "cash",
       bank_account_id: input.type === "expense" ? input.bankAccountId || null : null,
     };
-    const q = id
-      ? supabase.from("business_transactions").update(row).eq("id", id)
-      : supabase.from("business_transactions").insert(row);
-    const { error: err } = await q;
+    if (id) {
+      const { error: err } = await supabase.from("business_transactions").update(row).eq("id", id);
+      if (err) throw err;
+      await refresh();
+      return id;
+    }
+    const newId = crypto.randomUUID();
+    const { error: err } = await supabase.from("business_transactions").insert({ id: newId, ...row });
     if (err) throw err;
     await refresh();
+    return newId;
   }
 
   async function updateEntry(table, id, patch) {
@@ -293,7 +318,8 @@ export function FinanceProvider({ children }) {
     bankAccounts, suppliers, expenseCategories, financeItems, transactions,
     customerEntries, vendorEntries, transfers,
     loading, error, refresh,
-    balances, ledger, report, dayBookFor: book_, canEdit,
+    balances, ledger, report, reportEntries, cashflow: cashflowFor, dayBookFor: book_, canEdit,
+    purchasePaidAmount: getPurchasePaidAmount, purchasePaymentStatus: getPurchasePaymentStatus,
     nextReceiptNo: () => nextNumber(customerEntries),
     nextPaymentNo: () => nextNumber(vendorEntries),
     recordReceipt, recordPayout, saveTransaction, updateEntry, deleteRow,

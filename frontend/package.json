@@ -5,15 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "test": "vitest run \"src/**/*.test.{js,mjs}\"",
     "build": "vite build",
     "lint": "oxlint"
-
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
+    "nepali-date-converter": "^3.4.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.4"
+    "react-router-dom": "^7.18.4",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-latest/xlsx-latest.tgz"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

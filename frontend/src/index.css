@@ -26,6 +26,18 @@ a {
   color: inherit;
 }
 
+/* Export PDF (FINANCE-SPEC.md §4: PDF via a print stylesheet) - hides the
+   app chrome and lets the content print at full width. Elements that
+   only make sense on screen (sidebar, topbar, buttons) carry .no-print. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+}
+
 @layer components {
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-accent-dark hover:shadow-lg hover:shadow-accent/30;

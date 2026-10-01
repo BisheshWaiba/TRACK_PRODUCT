@@ -25,15 +25,14 @@ function sourceLabel(source) {
   return source === "booking" ? "Booking" : "Manual";
 }
 
-function purchaseSource(purchase, entries) {
-  const linkedEntry = entries.find((entry) => entry.sourceType === "business_transaction" && entry.sourceId === purchase.id);
-  return purchase.source || linkedEntry?.source || "manual";
+function statusTone(status) {
+  return status === "Paid" ? "teal" : status === "Partial" ? "slate" : "accent";
 }
 
 export default function SupplierDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { suppliers, transactions, vendorEntries, bankAccounts, ledger, updateSupplier, deleteSupplier, updateEntry, deleteRow, canEdit, loading } = useFinance();
+  const { suppliers, transactions, vendorEntries, bankAccounts, ledger, updateSupplier, deleteSupplier, updateEntry, deleteRow, canEdit, loading, purchasePaidAmount, purchasePaymentStatus, recordPayout } = useFinance();
   const [editForm, setEditForm] = useState(null);
   const [paymentForm, setPaymentForm] = useState(null);
   const [paymentError, setPaymentError] = useState("");
@@ -42,6 +41,9 @@ export default function SupplierDetail() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [payTarget, setPayTarget] = useState(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [payError, setPayError] = useState("");
 
   if (loading) return <div className="p-8 text-sm text-muted">Loading supplier...</div>;
 
@@ -137,6 +139,32 @@ export default function SupplierDetail() {
     }
   }
 
+  function openPay(purchase) {
+    setPayError("");
+    const remaining = purchase.amount - purchasePaidAmount(purchase.id);
+    setPayAmount(remaining > 0 ? String(remaining) : "");
+    setPayTarget(purchase);
+  }
+
+  async function handlePaySave(event) {
+    event.preventDefault();
+    const amount = Number(payAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setPayError("Amount must be greater than 0.");
+      return;
+    }
+    setSaving(true);
+    setPayError("");
+    try {
+      await recordPayout({ supplierId: supplier.id, amount, businessTransactionId: payTarget.id });
+      setPayTarget(null);
+    } catch (error) {
+      setPayError(error.message || "Could not record this payment.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-2 text-[13px]"><Link to="/suppliers" className="font-semibold text-muted hover:text-ink">Suppliers</Link><span className="text-muted">/</span><span className="font-bold">{supplier.name}</span></div>
@@ -144,7 +172,7 @@ export default function SupplierDetail() {
       <div className="flex flex-wrap gap-2.5"><Link to="/purchases?add=1" className="btn-primary"><Icon name="cart" className="h-[15px] w-[15px]" strokeWidth={1.8} /> New Purchase</Link><Link to="/received-payments?direction=payment_out" className="btn-ghost"><Icon name="arrowUp" className="h-[15px] w-[15px]" strokeWidth={1.8} /> Record Payment</Link></div>
       <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-5"><div className="card"><span className="text-xs font-semibold text-muted">TOTAL PURCHASES</span><div className="mt-1.5 font-display text-xl font-bold">{money(totalPurchases)}</div></div><div className="card"><span className="text-xs font-semibold text-muted">TOTAL PAID</span><div className="mt-1.5 font-display text-xl font-bold text-teal">{money(totalPaid)}</div></div><div className="card"><span className="text-xs font-semibold text-muted">OUTSTANDING</span><div className="mt-1.5 font-display text-xl font-bold text-danger">{money(payable)}</div></div><div className="card"><span className="text-xs font-semibold text-muted">PURCHASE BILLS</span><div className="mt-1.5 font-display text-xl font-bold">{purchases.length}</div></div><div className="card"><span className="text-xs font-semibold text-muted">PAYMENT RECORDS</span><div className="mt-1.5 font-display text-xl font-bold">{payments.length}</div></div></div>
 
-      <section className="flex flex-col gap-4"><span className="text-[15px] font-semibold">Purchase history</span><div className="hidden overflow-x-auto rounded-xl2 border border-border bg-surface sm:block"><div className="grid min-w-[950px] grid-cols-[0.8fr_0.9fr_2fr_0.8fr_0.8fr_1fr_0.8fr] gap-2 bg-surface-2 px-5 py-3.5 text-[10.5px] font-bold tracking-wide text-muted"><span>DATE</span><span>BILL #</span><span>ITEMS</span><span>DISCOUNT</span><span>VAT</span><span>AMOUNT</span><span>SOURCE</span></div>{purchases.map((purchase) => { const summary = itemSummary(purchase.items); const source = purchaseSource(purchase, vendorEntries); return <div key={purchase.id} className="grid min-w-[950px] grid-cols-[0.8fr_0.9fr_2fr_0.8fr_0.8fr_1fr_0.8fr] items-center gap-2 border-t border-border px-5 py-3.5 text-[13px]"><span className="text-ink-soft">{dateOf(purchase.billDate)}</span><span className="font-mono">{purchase.billNo || "-"}</span><span className="min-w-0"><span className="block truncate">{summary.text}</span><span className="text-[11px] text-muted">{summary.count} line{summary.count === 1 ? "" : "s"}</span></span><span>{money(purchase.discountAmount)}</span><span>{money(purchase.vatAmount)}</span><span className="font-semibold">{money(purchase.amount)}</span><Badge tone={source === "booking" ? "slate" : "muted"}>{sourceLabel(source)}</Badge></div>; })}{purchases.length === 0 && <div className="px-5 py-6 text-center text-sm text-muted">No purchases recorded yet.</div>}</div><div className="flex flex-col gap-2 sm:hidden">{purchases.map((purchase) => { const summary = itemSummary(purchase.items); const source = purchaseSource(purchase, vendorEntries); return <div key={purchase.id} className="flex flex-col gap-2 rounded-xl2 border border-border bg-surface p-3"><div className="flex items-start justify-between gap-2"><div><div className="font-semibold">{purchase.billNo || "Purchase bill"}</div><div className="text-[12px] text-muted">{dateOf(purchase.billDate)} · {summary.count} line{summary.count === 1 ? "" : "s"}</div></div><Badge tone={source === "booking" ? "slate" : "muted"}>{sourceLabel(source)}</Badge></div><div className="text-[12.5px] text-ink-soft">{summary.text}</div><div className="flex flex-wrap justify-between gap-2 text-[12px] text-muted"><span>Discount {money(purchase.discountAmount)}</span><span>VAT {money(purchase.vatAmount)}</span><span className="font-semibold text-ink">{money(purchase.amount)}</span></div></div>; })}{purchases.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-6 text-center text-sm text-muted">No purchases recorded yet.</div>}</div></section>
+      <section className="flex flex-col gap-4"><span className="text-[15px] font-semibold">Purchase history</span><div className="hidden overflow-x-auto rounded-xl2 border border-border bg-surface sm:block"><div className="grid min-w-[1020px] grid-cols-[0.8fr_0.8fr_1.8fr_0.9fr_1fr_0.9fr_0.7fr] gap-2 bg-surface-2 px-5 py-3.5 text-[10.5px] font-bold tracking-wide text-muted"><span>DATE</span><span>BILL #</span><span>ITEMS</span><span>AMOUNT</span><span>STATUS</span><span>PAID</span><span>ACTION</span></div>{purchases.map((purchase) => { const summary = itemSummary(purchase.items); const status = purchasePaymentStatus(purchase); const paid = purchasePaidAmount(purchase.id); return <div key={purchase.id} className="grid min-w-[1020px] grid-cols-[0.8fr_0.8fr_1.8fr_0.9fr_1fr_0.9fr_0.7fr] items-center gap-2 border-t border-border px-5 py-3.5 text-[13px]"><span className="text-ink-soft">{dateOf(purchase.billDate)}</span><span className="font-mono">{purchase.billNo || "-"}</span><span className="min-w-0"><span className="block truncate">{summary.text}</span><span className="text-[11px] text-muted">{summary.count} line{summary.count === 1 ? "" : "s"}</span></span><span className="font-semibold">{money(purchase.amount)}</span><Badge tone={statusTone(status)}>{status}</Badge><span className="text-muted">{money(paid)}</span>{status !== "Paid" ? <button onClick={() => openPay(purchase)} className="text-left text-[12.5px] font-semibold text-accent hover:underline">Pay</button> : <span className="text-muted">-</span>}</div>; })}{purchases.length === 0 && <div className="px-5 py-6 text-center text-sm text-muted">No purchases recorded yet.</div>}</div><div className="flex flex-col gap-2 sm:hidden">{purchases.map((purchase) => { const summary = itemSummary(purchase.items); const status = purchasePaymentStatus(purchase); return <div key={purchase.id} className="flex flex-col gap-2 rounded-xl2 border border-border bg-surface p-3"><div className="flex items-start justify-between gap-2"><div><div className="font-semibold">{purchase.billNo || "Purchase bill"}</div><div className="text-[12px] text-muted">{dateOf(purchase.billDate)} · {summary.count} line{summary.count === 1 ? "" : "s"}</div></div><Badge tone={statusTone(status)}>{status}</Badge></div><div className="text-[12.5px] text-ink-soft">{summary.text}</div><div className="flex flex-wrap items-center justify-between gap-2 text-[12px] text-muted"><span className="font-semibold text-ink">{money(purchase.amount)}</span>{status !== "Paid" && <button onClick={() => openPay(purchase)} className="font-semibold text-accent">Pay</button>}</div></div>; })}{purchases.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-6 text-center text-sm text-muted">No purchases recorded yet.</div>}</div></section>
 
       <section className="flex flex-col gap-4"><span className="text-[15px] font-semibold">Payment history</span><div className="hidden overflow-x-auto rounded-xl2 border border-border bg-surface sm:block"><div className="grid min-w-[980px] grid-cols-[0.9fr_1fr_1fr_1.2fr_1.8fr_0.8fr] gap-2 bg-surface-2 px-5 py-3.5 text-[10.5px] font-bold tracking-wide text-muted"><span>DATE</span><span>PAYMENT #</span><span>AMOUNT</span><span>SOURCE / ACCOUNT</span><span>NOTE</span><span>ACTIONS</span></div>{payments.map((payment) => <div key={payment.id} className="grid min-w-[980px] grid-cols-[0.9fr_1fr_1fr_1.2fr_1.8fr_0.8fr] items-center gap-2 border-t border-border px-5 py-3.5 text-[13px]"><span className="text-ink-soft">{dateOf(payment.entryDate || payment.createdAt?.slice(0, 10))}</span><span className="font-mono">{payment.receiptNo || "-"}</span><span className="font-semibold text-teal">{money(payment.amount)}</span><span>{sourceLabel(payment.source)} · {accountName(payment.bankAccountId)}</span><span className="truncate text-ink-soft">{payment.note || "-"}</span><div className="flex items-center gap-1.5">{canEdit(payment) ? <><button onClick={() => openPaymentEdit(payment)} title="Edit payment" className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="edit" className="h-[13px] w-[13px] text-ink-soft" strokeWidth={1.7} /></button><button onClick={() => { setPaymentDeleteError(""); setPaymentDelete(payment); }} title="Delete payment" className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="trash" className="h-[13px] w-[13px] text-danger" strokeWidth={1.7} /></button></> : <span className="text-muted">-</span>}</div></div>)}{payments.length === 0 && <div className="px-5 py-6 text-center text-sm text-muted">No payments recorded yet.</div>}</div><div className="flex flex-col gap-2 sm:hidden">{payments.map((payment) => <div key={payment.id} className="flex items-center justify-between gap-3 rounded-xl2 border border-border bg-surface p-3"><div className="min-w-0"><div className="font-semibold">{payment.receiptNo || "Payment"} · {sourceLabel(payment.source)}</div><div className="truncate text-[12px] text-muted">{dateOf(payment.entryDate || payment.createdAt?.slice(0, 10))} · {accountName(payment.bankAccountId)}{payment.note ? ` · ${payment.note}` : ""}</div></div><div className="flex flex-shrink-0 items-center gap-2">{canEdit(payment) && <><button onClick={() => openPaymentEdit(payment)} title="Edit payment" className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="edit" className="h-[14px] w-[14px] text-ink-soft" strokeWidth={1.7} /></button><button onClick={() => { setPaymentDeleteError(""); setPaymentDelete(payment); }} title="Delete payment" className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="trash" className="h-[14px] w-[14px] text-danger" strokeWidth={1.7} /></button></>}<span className="font-semibold text-teal">{money(payment.amount)}</span></div></div>)}{payments.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-6 text-center text-sm text-muted">No payments recorded yet.</div>}</div></section>
 
@@ -154,6 +182,26 @@ export default function SupplierDetail() {
       <Modal open={Boolean(paymentForm)} onClose={() => setPaymentForm(null)} title="Edit Payment" width="max-w-[460px]">{paymentForm && <form onSubmit={handlePaymentSave} className="flex flex-col gap-4">{paymentError && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-dark">{paymentError}</p>}<div className="flex flex-col gap-3.5 sm:flex-row"><Field label="Amount (NPR)" type="number" min="0.01" step="0.01" className="flex-1" value={paymentForm.amount} onChange={(event) => setPaymentForm({ ...paymentForm, amount: event.target.value })} required /><Field label="Payment Date" type="date" className="flex-1" value={paymentForm.date} onChange={(event) => setPaymentForm({ ...paymentForm, date: event.target.value })} required /></div><div className="flex flex-col gap-3.5 sm:flex-row"><Field label="Payment / Receipt No." className="flex-1" value={paymentForm.receiptNo} onChange={(event) => setPaymentForm({ ...paymentForm, receiptNo: event.target.value })} /><label className="flex flex-1 flex-col gap-2"><span className="text-[13px] font-semibold">Account / Method</span><select className="field" value={paymentForm.bankAccountId} onChange={(event) => setPaymentForm({ ...paymentForm, bankAccountId: event.target.value })}><option value="">Cash</option>{bankAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label></div><Field label="Note" placeholder="Optional" value={paymentForm.note} onChange={(event) => setPaymentForm({ ...paymentForm, note: event.target.value })} /><div className="flex gap-2.5"><button type="button" onClick={() => setPaymentForm(null)} className="btn-ghost flex-1">Cancel</button><button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving..." : "Save Payment"}</button></div></form>}</Modal>
       <Modal open={Boolean(paymentDelete)} onClose={() => setPaymentDelete(null)} title="Delete Payment" width="max-w-[420px]"><div className="flex flex-col gap-4"><p className="text-sm text-ink-soft">Delete this manual payment of {paymentDelete ? money(paymentDelete.amount) : ""}? This cannot be undone.</p>{paymentDeleteError && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-dark">{paymentDeleteError}</p>}<div className="flex gap-2.5"><button onClick={() => setPaymentDelete(null)} className="btn-ghost flex-1">Cancel</button><button onClick={handlePaymentDelete} disabled={saving} className="flex-1 rounded-lg bg-danger px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Deleting..." : "Delete"}</button></div></div></Modal>
       <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Delete Supplier" width="max-w-[420px]"><div className="flex flex-col gap-4"><p className="text-sm text-ink-soft">Delete {supplier.name}? Suppliers with purchase or payment history cannot be deleted.</p>{deleteError && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-dark">{deleteError}</p>}<div className="flex gap-2.5"><button onClick={() => setDeleteOpen(false)} className="btn-ghost flex-1">Cancel</button><button onClick={handleDelete} disabled={saving} className="flex-1 rounded-lg bg-danger px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Deleting..." : "Delete"}</button></div></div></Modal>
+
+      <Modal open={Boolean(payTarget)} onClose={() => setPayTarget(null)} title="Record Payment" width="max-w-[420px]">
+        {payTarget && (
+          <form onSubmit={handlePaySave} className="flex flex-col gap-4">
+            <div className="rounded-lg bg-surface-2 px-4 py-3 text-[13px]">
+              <div className="font-semibold">{payTarget.billNo ? `Bill #${payTarget.billNo}` : "Purchase bill"}</div>
+              <div className="mt-1 flex justify-between text-muted">
+                <span>Bill total {money(payTarget.amount)}</span>
+                <span>Already paid {money(purchasePaidAmount(payTarget.id))}</span>
+              </div>
+            </div>
+            {payError && <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-dark">{payError}</p>}
+            <Field label="Amount (NPR)" type="number" min="0.01" step="0.01" value={payAmount} onChange={(event) => setPayAmount(event.target.value)} required />
+            <div className="flex gap-2.5">
+              <button type="button" onClick={() => setPayTarget(null)} className="btn-ghost flex-1">Cancel</button>
+              <button type="submit" disabled={saving} className="btn-primary flex-1 disabled:opacity-60">{saving ? "Saving..." : "Save Payment"}</button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }

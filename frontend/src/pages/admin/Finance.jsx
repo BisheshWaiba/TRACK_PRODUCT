@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import Icon from "../../components/icons/Icon";
 import StatCard from "../../components/ui/StatCard";
+import Modal from "../../components/ui/Modal";
 import { money } from "../../lib/format";
+import { useData } from "../../context/DataContext";
 import { useFinance, today } from "../../context/FinanceContext";
 
 function monthStart() {
@@ -14,8 +17,9 @@ function yearStart() {
 
 // Mirrors shortcuts() in the Jageer Nepal source (FinanceDashboardScreen.tsx)
 // - this hub, and this grid, is the *only* way to any of these screens; none
-// of them sit in the main sidebar. Import Statement and the finance_items
-// Inventory cross-reference are left out (see FINANCE.md).
+// of them sit in the main sidebar. The finance_items Inventory
+// cross-reference is left out - this app's real stock tracking already
+// does that job more accurately (see FINANCE.md).
 const SHORTCUTS = [
   { to: "/daybook", label: "Day Book", icon: "cash" },
   { to: "/customers", label: "Ledger", icon: "users" },
@@ -26,17 +30,32 @@ const SHORTCUTS = [
   { to: "/expenses?add=1", label: "Expenses", icon: "arrowUp" },
   { to: "/bank-accounts", label: "Bank Accounts", icon: "cashBank" },
   { to: "/suppliers", label: "Suppliers", icon: "truck" },
+  { to: "/import-statement", label: "Import Statement", icon: "history" },
   { to: "/inventory", label: "Inventory", icon: "layers" },
   { to: "/reports", label: "Report", icon: "chart" },
 ];
 
 export default function Finance() {
-  const { balances, ledger, report, loading } = useFinance();
+  const { customers } = useData();
+  const { balances, ledger, suppliers, report, loading } = useFinance();
+  const [breakdown, setBreakdown] = useState(null); // "receivable" | "payable" | null
 
   if (loading) return <div className="p-8 text-sm text-muted">Loading finance…</div>;
 
   const period = report({ from: monthStart(), to: today() });
   const yearly = report({ from: yearStart(), to: today() });
+
+  // Who makes up the To Receive / To Give total, biggest first - a single
+  // summed figure can't be checked against anything on its own.
+  function partyBreakdown(field) {
+    const names = new Map([...customers, ...suppliers].map((p) => [p.id, p.name]));
+    const base = field === "receivable" ? "/customers" : "/suppliers";
+    return [...ledger.byParty.entries()]
+      .map(([id, row]) => ({ id, name: names.get(id) || "Unknown party", amount: row[field] }))
+      .filter((row) => row.amount > 0)
+      .sort((a, b) => b.amount - a.amount)
+      .map((row) => ({ ...row, href: `${base}/${row.id}` }));
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -46,14 +65,14 @@ export default function Finance() {
           <span className={`font-display text-2xl font-bold ${balances.total < 0 ? "text-danger" : ""}`}>{money(balances.total)}</span>
           <span className="text-xs text-muted">Cash {money(balances.cash)}{balances.perAccount.length > 0 && ` · ${balances.perAccount.length} bank account${balances.perAccount.length === 1 ? "" : "s"}`}</span>
         </Link>
-        <Link to="/customers" className="card flex flex-col gap-1.5 hover:bg-bg">
+        <button onClick={() => setBreakdown("receivable")} className="card flex flex-col gap-1.5 text-left hover:bg-bg">
           <span className="text-xs font-semibold text-muted">TO RECEIVE</span>
           <span className="font-display text-2xl font-bold text-teal">{money(ledger.totalReceivable)}</span>
-        </Link>
-        <Link to="/suppliers" className="card flex flex-col gap-1.5 hover:bg-bg">
+        </button>
+        <button onClick={() => setBreakdown("payable")} className="card flex flex-col gap-1.5 text-left hover:bg-bg">
           <span className="text-xs font-semibold text-muted">TO GIVE</span>
           <span className="font-display text-2xl font-bold text-danger">{money(ledger.totalPayable)}</span>
-        </Link>
+        </button>
       </div>
 
       <div className="grid grid-cols-3 gap-3 sm:gap-5 lg:grid-cols-5">
@@ -75,6 +94,20 @@ export default function Finance() {
           ))}
         </div>
       </div>
+
+      <Modal open={!!breakdown} onClose={() => setBreakdown(null)} title={breakdown === "receivable" ? "Who owes you" : "Who you owe"} width="max-w-[420px]">
+        <div className="flex flex-col gap-2">
+          {breakdown && partyBreakdown(breakdown).map((row) => (
+            <Link key={row.id} to={row.href} onClick={() => setBreakdown(null)} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-[13px] hover:bg-surface-2">
+              <span className="truncate font-semibold">{row.name}</span>
+              <span className={`flex-shrink-0 font-semibold ${breakdown === "receivable" ? "text-teal" : "text-danger"}`}>{money(row.amount)}</span>
+            </Link>
+          ))}
+          {breakdown && partyBreakdown(breakdown).length === 0 && (
+            <p className="px-3 py-6 text-center text-sm text-muted">Nobody owes {breakdown === "receivable" ? "you" : "anyone"} right now.</p>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

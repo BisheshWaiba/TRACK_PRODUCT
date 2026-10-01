@@ -17,8 +17,9 @@ const FINANCE_CHILDREN = [
   { to: "/purchases?add=1", label: "Purchase", icon: "cart" },
   { to: "/expenses?add=1", label: "Expenses", icon: "arrowUp" },
   { to: "/bank-accounts", label: "Bank Accounts", icon: "cashBank" },
+  { to: "/import-statement", label: "Import Statement", icon: "history" },
 ];
-const FINANCE_PATHS = ["/finance", "/daybook", "/purchases", "/expenses", "/received-payments", "/bank-accounts"];
+const FINANCE_PATHS = ["/finance", "/daybook", "/purchases", "/expenses", "/received-payments", "/bank-accounts", "/import-statement"];
 
 // Account keeps its own icon+name card at the bottom of the sidebar
 // (with the logout button) - it doesn't need a second entry up here too.
@@ -46,6 +47,7 @@ const TITLES = {
   "/received-payments": "Received / Paid",
   "/bank-accounts": "Bank Accounts",
   "/daybook": "Day Book",
+  "/import-statement": "Import Statement",
   "/reports": "Reports",
   "/account": "Account",
 };
@@ -82,7 +84,7 @@ export default function AdminLayout() {
       )}
 
       <div
-        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[250px] flex-shrink-0 flex-col justify-between overflow-y-auto bg-sidebar p-4 text-sidebar-text transition-transform duration-200 lg:sticky lg:top-0 lg:translate-x-0 ${
+        className={`no-print fixed inset-y-0 left-0 z-50 flex h-screen w-[250px] flex-shrink-0 flex-col justify-between overflow-y-auto bg-sidebar p-4 text-sidebar-text transition-transform duration-200 lg:sticky lg:top-0 lg:translate-x-0 ${
           navOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -186,7 +188,7 @@ export default function AdminLayout() {
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex h-[64px] flex-shrink-0 items-center justify-between border-b border-border bg-surface px-4 sm:h-[72px] sm:px-8">
+        <div className="no-print flex h-[64px] flex-shrink-0 items-center justify-between border-b border-border bg-surface px-4 sm:h-[72px] sm:px-8">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button onClick={() => setNavOpen(true)} aria-label="Open menu" className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md hover:bg-surface-2 lg:hidden">
               <Icon name="menu" className="h-5 w-5" strokeWidth={1.8} />
