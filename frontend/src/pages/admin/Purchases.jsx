@@ -13,12 +13,12 @@ function blankItem() {
   return { key: ++itemSeq, name: "", qty: "1", rate: "", productId: null };
 }
 function blankForm() {
-  return { partyName: "", partyId: null, billNo: "", billDate: today(), note: "", discountAmount: "", vatAmount: "", items: [blankItem()] };
+  return { partyName: "", supplierId: null, billNo: "", billDate: today(), note: "", discountAmount: "", vatAmount: "", items: [blankItem()] };
 }
 
 export default function Purchases() {
-  const { loading: dataLoading, products, customers, createProduct, createStockMovement } = useData();
-  const { loading: financeLoading, transactions, saveTransaction } = useFinance();
+  const { loading: dataLoading, products, createProduct, createStockMovement } = useData();
+  const { loading: financeLoading, transactions, suppliers, createSupplier, saveTransaction } = useFinance();
   const [searchParams, setSearchParams] = useSearchParams();
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(blankForm);
@@ -72,8 +72,8 @@ export default function Purchases() {
   }
 
   function handlePartyNameChange(value) {
-    const match = customers.find((c) => c.name.toLowerCase() === value.trim().toLowerCase());
-    setForm((f) => ({ ...f, partyName: value, partyId: match ? match.id : null }));
+    const match = suppliers.find((s) => s.name.toLowerCase() === value.trim().toLowerCase());
+    setForm((f) => ({ ...f, partyName: value, supplierId: match ? match.id : null }));
   }
 
   function addItem() {
@@ -113,12 +113,14 @@ export default function Purchases() {
           await createProduct({ name: it.name.trim(), price: it.rate, stock: it.qty });
         }
       }
+      let supplierId = form.supplierId;
+      if (form.partyName.trim() && !supplierId) supplierId = await createSupplier({ name: form.partyName.trim() });
       await saveTransaction({
         type: "purchase",
         amount: grandTotal,
         note: form.note || null,
         partyName: form.partyName || null,
-        partyId: form.partyId,
+        supplierId,
         billNo: form.billNo || null,
         billDate: form.billDate,
         discountAmount: discount,
@@ -194,16 +196,16 @@ export default function Purchases() {
             {products.map((p) => <option key={p.id} value={p.name} />)}
           </datalist>
           <datalist id="supplier-names">
-            {customers.map((c) => <option key={c.id} value={c.name} />)}
+            {suppliers.map((s) => <option key={s.id} value={s.name} />)}
           </datalist>
 
           <div className="flex flex-col gap-3.5 sm:flex-row">
-            <Field label="Supplier" className="flex-1" list="supplier-names" placeholder="Existing customer or a new name" value={form.partyName} onChange={(e) => handlePartyNameChange(e.target.value)} />
+            <Field label="Supplier" className="flex-1" list="supplier-names" placeholder="Existing supplier or a new name" value={form.partyName} onChange={(e) => handlePartyNameChange(e.target.value)} />
             <Field label="Bill No." className="flex-1" placeholder="INV-4521" value={form.billNo} onChange={(e) => setForm({ ...form, billNo: e.target.value })} />
             <Field label="Bill Date" type="date" className="flex-1" value={form.billDate} onChange={(e) => setForm({ ...form, billDate: e.target.value })} />
           </div>
-          {!form.partyId && form.partyName && (
-            <p className="-mt-2 text-[12px] text-muted">No matching customer — this bill settles as cash paid on the spot.</p>
+          {!form.supplierId && form.partyName && (
+            <p className="-mt-2 text-[12px] text-muted">A new supplier will be created when you save.</p>
           )}
 
           <div className="flex flex-col rounded-xl2 border border-border">
