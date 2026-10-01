@@ -10,7 +10,7 @@ import { useFinance } from "../../context/FinanceContext";
 const emptyForm = { name: "", contact: "", phone: "", address: "" };
 
 export default function Suppliers() {
-  const { suppliers, ledger, createSupplier, updateSupplier, deleteSupplier, loading } = useFinance();
+  const { suppliers, transactions, vendorEntries, ledger, createSupplier, updateSupplier, deleteSupplier, loading } = useFinance();
   const [query, setQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -22,6 +22,17 @@ export default function Suppliers() {
   const shown = suppliers.filter((supplier) =>
     [supplier.name, supplier.contact, supplier.phone].some((value) => (value || "").toLowerCase().includes(query.toLowerCase()))
   );
+
+  function statsFor(supplierId) {
+    const purchased = transactions
+      .filter((transaction) => transaction.type === "purchase" && transaction.supplierId === supplierId)
+      .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
+    const paid = vendorEntries
+      .filter((entry) => (entry.supplierId || entry.vendorId) === supplierId && entry.entryType === "credit")
+      .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+    const payable = Math.max(Number(ledger.byParty.get(supplierId)?.payable || 0), 0);
+    return { purchased, paid, payable };
+  }
 
   async function handleCreate(event) {
     event.preventDefault();
@@ -78,15 +89,15 @@ export default function Suppliers() {
       </div>
 
       <div className="hidden overflow-x-auto rounded-xl2 border border-border bg-surface sm:block">
-        <div className="grid min-w-[760px] grid-cols-[1.8fr_1.2fr_1.1fr_1.4fr_0.8fr] gap-2 bg-surface-2 px-5 py-3.5 text-[11px] font-bold tracking-wide text-muted">
-          <span>SUPPLIER / CONTACT</span><span>PHONE</span><span>CITY</span><span>PAYABLE</span><span>ACTIONS</span>
+        <div className="grid min-w-[980px] grid-cols-[1.7fr_0.9fr_1.1fr_1.1fr_1.1fr_0.8fr] gap-2 bg-surface-2 px-5 py-3.5 text-[11px] font-bold tracking-wide text-muted">
+          <span>SUPPLIER / CONTACT</span><span>PHONE</span><span>PURCHASED</span><span>PAID</span><span>TO PAY</span><span>ACTIONS</span>
         </div>
         {shown.map((supplier) => {
-          const entry = ledger.byParty.get(supplier.id);
-          const line = ledgerLine(entry);
-          return <div key={supplier.id} className="grid min-w-[760px] grid-cols-[1.8fr_1.2fr_1.1fr_1.4fr_0.8fr] items-center gap-2 border-t border-border px-5 py-4 text-[13px] hover:bg-bg">
+          const stats = statsFor(supplier.id);
+          const line = ledgerLine(ledger.byParty.get(supplier.id));
+          return <div key={supplier.id} className="grid min-w-[980px] grid-cols-[1.7fr_0.9fr_1.1fr_1.1fr_1.1fr_0.8fr] items-center gap-2 border-t border-border px-5 py-4 text-[13px] hover:bg-bg">
             <Link to={`/suppliers/${supplier.id}`} className="min-w-0 hover:text-accent"><div className="font-semibold">{supplier.name}</div><div className="text-[11.5px] text-muted">{supplier.contact}</div></Link>
-            <span>{supplier.phone}</span><span>{supplier.city || "—"}</span><Badge tone={line.tone}>{money(Math.max(entry?.payable || 0, 0))}</Badge>
+            <span>{supplier.phone || "—"}</span><span className="font-semibold">{money(stats.purchased)}</span><span className="font-semibold text-teal">{money(stats.paid)}</span><Badge tone={line.tone}>{money(stats.payable)}</Badge>
             <div className="flex gap-1.5"><button onClick={(event) => { event.preventDefault(); event.stopPropagation(); setEditTarget({ ...supplier }); }} title="Edit supplier" className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="edit" className="h-[13px] w-[13px] text-ink-soft" strokeWidth={1.7} /></button><button onClick={(event) => { event.preventDefault(); event.stopPropagation(); setDeleteError(""); setDeleteTarget(supplier); }} title="Delete supplier" className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="trash" className="h-[13px] w-[13px] text-danger" strokeWidth={1.7} /></button></div>
           </div>;
         })}
@@ -95,10 +106,10 @@ export default function Suppliers() {
 
       <div className="flex flex-col gap-2 sm:hidden">
         {shown.map((supplier) => {
-          const entry = ledger.byParty.get(supplier.id);
-          return <div key={supplier.id} className="flex items-center justify-between rounded-xl2 border border-border bg-surface p-3">
+          const stats = statsFor(supplier.id);
+          return <div key={supplier.id} className="flex items-center justify-between gap-3 rounded-xl2 border border-border bg-surface p-3">
             <Link to={`/suppliers/${supplier.id}`} className="min-w-0 hover:text-accent"><div className="truncate font-semibold">{supplier.name}</div><div className="truncate text-[12px] text-muted">{supplier.contact || supplier.phone || "No contact details"}</div></Link>
-            <div className="flex flex-shrink-0 items-center gap-2"><span className="text-[13px] font-semibold text-danger">{money(Math.max(entry?.payable || 0, 0))}</span><button onClick={(event) => { event.preventDefault(); event.stopPropagation(); setEditTarget({ ...supplier }); }} title="Edit supplier" className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="edit" className="h-[14px] w-[14px] text-ink-soft" strokeWidth={1.7} /></button><button onClick={(event) => { event.preventDefault(); event.stopPropagation(); setDeleteError(""); setDeleteTarget(supplier); }} title="Delete supplier" className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="trash" className="h-[14px] w-[14px] text-danger" strokeWidth={1.7} /></button></div>
+            <div className="flex flex-shrink-0 items-center gap-2.5"><div className="text-right text-[11px]"><div className="font-semibold text-danger">To pay {money(stats.payable)}</div><div className="text-muted">Paid {money(stats.paid)}</div></div><button onClick={(event) => { event.preventDefault(); event.stopPropagation(); setEditTarget({ ...supplier }); }} title="Edit supplier" className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="edit" className="h-[14px] w-[14px] text-ink-soft" strokeWidth={1.7} /></button><button onClick={(event) => { event.preventDefault(); event.stopPropagation(); setDeleteError(""); setDeleteTarget(supplier); }} title="Delete supplier" className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-surface-2"><Icon name="trash" className="h-[14px] w-[14px] text-danger" strokeWidth={1.7} /></button></div>
           </div>;
         })}
         {shown.length === 0 && <div className="rounded-xl2 border border-border bg-surface px-5 py-8 text-center text-sm text-muted">No suppliers found.</div>}
